@@ -1,0 +1,42 @@
+[
+  {
+    "id": "seg-0001",
+    "meetingId": "meeting-fixture-001",
+    "speakerLabel": "You",
+    "startMs": 0,
+    "endMs": 3200,
+    "text": "Good morning everyone, let's get started."
+  },
+  {
+    "id": "seg-0002",
+    "meetingId": "meeting-fixture-001",
+    "speakerLabel": "Caller",
+    "startMs": 3800,
+    "endMs": 8500,
+    "text": "Thanks for having me. I wanted to discuss the quarterly roadmap."
+  },
+  {
+    "id": "seg-0003",
+    "meetingId": "meeting-fixture-001",
+    "speakerLabel": "You",
+    "startMs": 9000,
+    "endMs": 14200,
+    "text": "Sure. We have three priorities this quarter: infrastructure, performance, and developer experience."
+  },
+  {
+    "id": "seg-0004",
+    "meetingId": "meeting-fixture-001",
+    "speakerLabel": "Caller",
+    "startMs": 15000,
+    "endMs": 20100,
+    "text": "That aligns with what we discussed last week. Can you share the timeline for the infrastructure work?"
+  },
+  {
+    "id": "seg-0005",
+    "meetingId": "meeting-fixture-001",
+    "speakerLabel": "You",
+    "startMs": 21000,
+    "endMs": 27500,
+    "text": "The infrastructure migration is scheduled for the first six weeks. We'll have a checkpoint at week three."
+  }
+]

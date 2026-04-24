@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+
+  <g id="bg">
+    <rect x="0" y="0" width="512" height="512" fill="#111111"/>
+  </g>
+
+  <g id="a-shape">
+    <!-- Left leg above crossbar: apex(210,60)-(302,60) narrowing to (192,290)-(134,290) -->
+    <polygon points="210,60 302,60 192,290 134,290" fill="#0D9488"/>
+
+    <!-- Left leg below crossbar: (189,340)-(117,340) widening to base (180,452)-(80,452) -->
+    <polygon points="189,340 117,340 80,452 180,452" fill="#0D9488"/>
+
+    <!-- Right leg above crossbar: apex(210,60)-(302,60) widening to (320,290)-(378,290) -->
+    <polygon points="210,60 302,60 378,290 320,290" fill="#0D9488"/>
+
+    <!-- Right leg below crossbar: (323,340)-(395,340) widening to base (332,452)-(432,452) -->
+    <polygon points="323,340 395,340 432,452 332,452" fill="#0D9488"/>
+  </g>
+
+  <g id="wave-bars">
+    <!-- 5 bars centered at x=256, spacing=32px, bar width=18px -->
+    <!-- Centers at x: 192, 224, 256, 288, 320 -->
+    <!-- Left edges: 183, 215, 247, 279, 311 -->
+    <!-- Crossbar zone y=290-340, center y=315 -->
+    <!-- Heights: 30, 48, 60, 48, 30 -->
+
+    <rect x="183" y="300" width="18" height="30" fill="#D97706"/>
+    <rect x="215" y="291" width="18" height="48" fill="#D97706"/>
+    <rect x="247" y="285" width="18" height="60" fill="#D97706"/>
+    <rect x="279" y="291" width="18" height="48" fill="#D97706"/>
+    <rect x="311" y="300" width="18" height="30" fill="#D97706"/>
+  </g>
+
+</svg>

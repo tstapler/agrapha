@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+
+  <!-- Background -->
+  <g id="bg">
+    <rect width="512" height="512" fill="#111111"/>
+  </g>
+
+  <!-- A shape: two teal legs + crossbar, interior cutout via negative space -->
+  <g id="a-shape">
+    <!-- Left leg: parallelogram from ~(215,105) to ~(85,430) -->
+    <polygon points="215,105 270,105 140,430 85,430" fill="#0D9488"/>
+    <!-- Right leg: parallelogram from ~(297,105) to ~(427,430) -->
+    <polygon points="242,105 297,105 427,430 372,430" fill="#0D9488"/>
+    <!-- Interior triangle cutout (negative space between legs, above crossbar) -->
+    <polygon points="242,105 215,105 152,290 304,290" fill="#111111"/>
+    <!-- Crossbar band: y=290 to y=330, spans both legs -->
+    <rect x="85" y="290" width="342" height="40" fill="#0D9488"/>
+    <!-- Interior cutout below crossbar: left leg gap -->
+    <polygon points="152,330 180,330 140,415 112,415" fill="#111111"/>
+    <!-- Interior cutout below crossbar: right leg gap -->
+    <polygon points="332,330 360,330 400,415 372,415" fill="#111111"/>
+  </g>
+
+  <!-- Upper zone: 5 vertical amber waveform bars, bottom-aligned at y=270, inside upper triangle -->
+  <g id="wave-upper">
+    <!-- Bar 1: height 25, center x=215 -->
+    <rect x="207" y="245" width="16" height="25" fill="#D97706"/>
+    <!-- Bar 2: height 38, center x=237 -->
+    <rect x="229" y="232" width="16" height="38" fill="#D97706"/>
+    <!-- Bar 3: height 50, center x=259 (center) -->
+    <rect x="251" y="220" width="16" height="50" fill="#D97706"/>
+    <!-- Bar 4: height 38, center x=281 -->
+    <rect x="273" y="232" width="16" height="38" fill="#D97706"/>
+    <!-- Bar 5: height 25, center x=303 -->
+    <rect x="295" y="245" width="16" height="25" fill="#D97706"/>
+  </g>
+
+  <!-- Lower zone: horizontal text lines in each leg interior below crossbar -->
+  <g id="text-lower">
+    <!-- Left side: 3 horizontal lines within left leg gap below crossbar -->
+    <!-- Left interior rough center x~145, width ~24 -->
+    <rect x="122" y="344" width="32" height="8" fill="#D97706"/>
+    <rect x="118" y="356" width="36" height="8" fill="#D97706"/>
+    <rect x="114" y="368" width="32" height="8" fill="#D97706"/>
+
+    <!-- Right side: 3 horizontal lines within right leg gap below crossbar -->
+    <!-- Right interior rough center x~367, width ~24 -->
+    <rect x="350" y="344" width="32" height="8" fill="#D97706"/>
+    <rect x="354" y="356" width="36" height="8" fill="#D97706"/>
+    <rect x="358" y="368" width="32" height="8" fill="#D97706"/>
+  </g>
+
+  <!-- Recording indicator dot -->
+  <g id="dot">
+    <circle cx="256" cy="75" r="18" fill="#EF4444"/>
+  </g>
+
+</svg>

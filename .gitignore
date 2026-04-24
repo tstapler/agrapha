@@ -1,0 +1,44 @@
+# Gradle
+.gradle/
+build/
+*.gradle.kts.lock
+composeApp/build/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# macOS
+.DS_Store
+*.xcworkspace
+
+# Native build artifacts
+native/WhisperCoreML/build/
+native/AudioCaptureBridge/.build/
+composeApp/src/desktopMain/resources/libwhisperjni-coreml.dylib
+composeApp/src/desktopMain/resources/AudioCaptureBridgeJNI.dylib
+composeApp/src/desktopMain/resources/libAudioCaptureBridge.dylib
+
+# Whisper models (large binary files — download via Settings UI)
+**/*.bin
+**/*.gguf
+**/*.mlmodelc
+
+# Audio recordings (personal data)
+recordings/
+
+# SQLite database
+**/*.db
+**/*.db-shm
+**/*.db-wal
+
+# Local config (never commit)
+local.properties
+*.keystore
+*.jks
+
+# Test fixtures (generated)
+composeApp/src/desktopTest/resources/fixtures/*.wav

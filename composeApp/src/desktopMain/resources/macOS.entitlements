@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Required for ScreenCaptureKit system audio capture -->
+    <key>com.apple.security.screen-recording</key>
+    <true/>
+
+    <!-- Required for microphone input -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <!-- JVM apps must NOT use the App Sandbox with ScreenCaptureKit -->
+    <!-- BUG-001: App Sandbox blocks SCStream in JVM processes -->
+    <!-- Distribute outside App Store (direct DMG) to avoid sandbox requirement -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+
+    <!-- JIT required for JVM performance -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- Required to load unsigned native .dylib (AudioCaptureBridgeJNI) -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- Allow unsigned executable memory pages (JVM requirement) -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+</dict>
+</plist>

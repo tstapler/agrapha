@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-14
+    timeout-minutes: 60
+    permissions:
+      contents: write   # required for gh release create
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Cache WhisperCoreML build
+        uses: actions/cache@v4
+        with:
+          path: native/WhisperCoreML/build
+          key: ${{ runner.os }}-whisper-jni-${{ hashFiles('native/WhisperCoreML/Makefile', 'gradle/libs.versions.toml') }}
+
+      - name: Build WhisperCoreML dylib
+        run: |
+          brew install cmake
+          cd native/WhisperCoreML
+          make
+
+      - name: Build AudioCaptureBridge dylib
+        run: |
+          cd native/AudioCaptureBridge
+          make
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build release DMG
+        run: ./gradlew :composeApp:packageReleaseDmg --no-daemon
+
+      - name: Locate DMG and compute SHA256
+        id: dmg
+        run: |
+          DMG=$(find composeApp/build/compose/binaries/main-release/dmg -name '*.dmg' | head -1)
+          echo "path=$DMG" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$DMG")" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(shasum -a 256 "$DMG" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            "${{ steps.dmg.outputs.path }}" \
+            --title "Agrapha ${{ github.ref_name }}" \
+            --generate-notes
+
+      - name: Print SHA256 for Homebrew cask formula
+        run: |
+          echo "DMG: ${{ steps.dmg.outputs.name }}"
+          echo "SHA256: ${{ steps.dmg.outputs.sha256 }}"
+          echo ""
+          echo "Update Casks/agrapha.rb in tstapler/homebrew-agrapha with the SHA256 above."

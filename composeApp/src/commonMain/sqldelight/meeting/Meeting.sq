@@ -1,0 +1,120 @@
+-- Meeting Notes SQLDelight Schema
+-- SQLite dialect; generated code package: com.meetingnotes.db
+
+CREATE TABLE IF NOT EXISTS Meeting (
+    id              TEXT    NOT NULL PRIMARY KEY,
+    title           TEXT    NOT NULL,
+    startedAt       INTEGER NOT NULL,
+    endedAt         INTEGER,
+    durationSeconds INTEGER,
+    audioFilePath   TEXT    NOT NULL,
+    transcriptFilePath TEXT,
+    platform        TEXT    NOT NULL DEFAULT 'UNKNOWN',
+    summaryModel    TEXT,
+    audioDurationMs          INTEGER,
+    transcriptionDurationMs  INTEGER,
+    transcriptionMetricsJson TEXT
+);
+
+CREATE TABLE IF NOT EXISTS TranscriptSegment (
+    id           TEXT    NOT NULL PRIMARY KEY,
+    meetingId    TEXT    NOT NULL REFERENCES Meeting(id) ON DELETE CASCADE,
+    speakerLabel TEXT,
+    startMs      INTEGER NOT NULL,
+    endMs        INTEGER NOT NULL,
+    text         TEXT    NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS MeetingSummary (
+    meetingId          TEXT NOT NULL PRIMARY KEY REFERENCES Meeting(id) ON DELETE CASCADE,
+    keyPointsJson      TEXT NOT NULL DEFAULT '[]',
+    decisionsJson      TEXT NOT NULL DEFAULT '[]',
+    actionItemsJson    TEXT NOT NULL DEFAULT '[]',
+    discussionPointsJson TEXT NOT NULL DEFAULT '[]',
+    rawLlmResponse     TEXT
+);
+
+CREATE TABLE IF NOT EXISTS AppSettingsStore (
+    key   TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- ── Meeting queries ───────────────────────────────────────────────────────────
+
+insertMeeting:
+INSERT OR REPLACE INTO Meeting
+    (id, title, startedAt, endedAt, durationSeconds, audioFilePath, transcriptFilePath, platform, summaryModel, audioDurationMs, transcriptionDurationMs)
+VALUES
+    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+getMeetingById:
+SELECT * FROM Meeting WHERE id = ?;
+
+getAllMeetings:
+SELECT * FROM Meeting ORDER BY startedAt DESC;
+
+getRecentMeetings:
+SELECT * FROM Meeting ORDER BY startedAt DESC LIMIT ?;
+
+updateMeetingEnd:
+UPDATE Meeting SET endedAt = ?, durationSeconds = ? WHERE id = ?;
+
+updateMeetingTranscript:
+UPDATE Meeting SET transcriptFilePath = ? WHERE id = ?;
+
+updateMeetingSummaryModel:
+UPDATE Meeting SET summaryModel = ? WHERE id = ?;
+
+updateMeetingTimings:
+UPDATE Meeting SET audioDurationMs = ?, transcriptionDurationMs = ? WHERE id = ?;
+
+getMeetingsBefore:
+SELECT * FROM Meeting WHERE startedAt < ? ORDER BY startedAt ASC;
+
+deleteMeeting:
+DELETE FROM Meeting WHERE id = ?;
+
+clearAudioFilePath:
+UPDATE Meeting SET audioFilePath = '' WHERE id = ?;
+
+updateMeetingTitle:
+UPDATE Meeting SET title = ? WHERE id = ?;
+
+updateMeetingMetrics:
+UPDATE Meeting SET transcriptionMetricsJson = ? WHERE id = ?;
+
+-- ── TranscriptSegment queries ─────────────────────────────────────────────────
+
+insertSegment:
+INSERT OR REPLACE INTO TranscriptSegment
+    (id, meetingId, speakerLabel, startMs, endMs, text)
+VALUES
+    (?, ?, ?, ?, ?, ?);
+
+getSegmentsByMeetingId:
+SELECT * FROM TranscriptSegment WHERE meetingId = ? ORDER BY startMs ASC;
+
+deleteSegmentsByMeetingId:
+DELETE FROM TranscriptSegment WHERE meetingId = ?;
+
+-- ── MeetingSummary queries ────────────────────────────────────────────────────
+
+insertSummary:
+INSERT OR REPLACE INTO MeetingSummary
+    (meetingId, keyPointsJson, decisionsJson, actionItemsJson, discussionPointsJson, rawLlmResponse)
+VALUES
+    (?, ?, ?, ?, ?, ?);
+
+getSummaryByMeetingId:
+SELECT * FROM MeetingSummary WHERE meetingId = ?;
+
+-- ── AppSettings queries ───────────────────────────────────────────────────────
+
+upsertSetting:
+INSERT OR REPLACE INTO AppSettingsStore (key, value) VALUES (?, ?);
+
+getSetting:
+SELECT value FROM AppSettingsStore WHERE key = ?;
+
+getAllSettings:
+SELECT key, value FROM AppSettingsStore;

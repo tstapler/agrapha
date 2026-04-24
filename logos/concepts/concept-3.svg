@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <g id="bg">
+    <rect width="512" height="512" fill="#111111"/>
+  </g>
+  <g id="ring">
+    <!-- Broken circle: arc from ~50deg to ~310deg (gap at top-right, roughly 50deg to 310deg clockwise) -->
+    <!-- Arc center 256,256 radius 160, gap at top-right -->
+    <!-- Start angle: 50deg, End angle: 310deg (going clockwise, gap from 310 to 50 = 100deg gap at top-right) -->
+    <!-- 50deg from top = 50deg from -Y axis = standard angle 50-90=-40 => 320deg in standard math coords -->
+    <!-- Using standard SVG arc: angles measured from positive X axis -->
+    <!-- Gap at top-right: roughly from 320deg to 60deg (standard) = 100deg gap -->
+    <!-- Arc from 60deg to 320deg clockwise = large arc (260deg) -->
+    <!-- 60deg: x=256+160*cos(60)=256+80=336, y=256+160*sin(60)=256+138.6=394.6 -->
+    <!-- 320deg: x=256+160*cos(320)=256+160*0.766=256+122.5=378.5, y=256+160*sin(320)=256+160*(-0.643)=256-102.8=153.2 -->
+    <path
+      d="M 336 394.6 A 160 160 0 1 1 378.5 153.2"
+      fill="none"
+      stroke="#0D9488"
+      stroke-width="44"
+      stroke-linecap="round"
+    />
+  </g>
+  <g id="dot">
+    <circle cx="256" cy="256" r="52" fill="#0D9488"/>
+  </g>
+</svg>

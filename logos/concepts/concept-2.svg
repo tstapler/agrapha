@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+
+  <g id="bg">
+    <rect width="512" height="512" fill="#111111"/>
+  </g>
+
+  <g id="wave">
+    <!-- 5 waveform bars, upper half, centered, varying heights -->
+    <rect x="156" y="148" width="28" height="100" rx="6" fill="#D97706"/>
+    <rect x="204" y="108" width="28" height="140" rx="6" fill="#D97706"/>
+    <rect x="252" y="80"  width="28" height="168" rx="6" fill="#D97706"/>
+    <rect x="300" y="108" width="28" height="140" rx="6" fill="#D97706"/>
+    <rect x="348" y="148" width="28" height="100" rx="6" fill="#D97706"/>
+  </g>
+
+  <g id="text-lines">
+    <!-- 3 horizontal text lines, lower half, equal width, flattened bars -->
+    <rect x="136" y="296" width="240" height="20" rx="4" fill="#D97706"/>
+    <rect x="136" y="336" width="240" height="20" rx="4" fill="#D97706"/>
+    <rect x="136" y="376" width="240" height="20" rx="4" fill="#D97706"/>
+  </g>
+
+</svg>

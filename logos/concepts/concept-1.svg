@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <g id="bg">
+    <rect width="512" height="512" fill="#111111"/>
+  </g>
+  <g id="icon">
+    <!--
+      Geometric A letterform as a single compound path using even-odd fill rule.
+      Outer shape: bold A triangle with thick legs.
+      Inner cutout: crossbar gap.
+
+      Outer A outline (clockwise):
+        Apex region: flat top from x=220 to x=292, at y=112
+        Right outer leg descends to bottom-right: x=356, y=400
+        Bottom-right inner corner: x=308, y=400
+        Right inner leg ascends back toward apex
+        Crossbar bottom-right: x=308, y=310
+        Crossbar bottom-left: x=204, y=310
+        Left inner leg descends from crossbar to bottom
+        Bottom-left inner corner: x=156, y=400
+        Left outer leg: x=156, y=400
+        ... close
+
+      Let me build this more carefully as two separate paths:
+      - Outer A silhouette (filled teal)
+      - Inner gap (crossbar cutout, filled bg color)
+      This avoids even-odd complexity and is explicit.
+    -->
+
+    <!-- Outer A silhouette -->
+    <!-- Apex flat top: center=256. Legs diverge from x=220..292 at y=112 down to x=100..412 at y=412 -->
+    <!-- Left outer leg: top-left of apex = (220,112), bottom-left = (100,412) -->
+    <!-- Right outer leg: top-right of apex = (292,112), bottom-right = (412,412) -->
+    <!-- Leg thickness ~60px each leg -->
+    <path
+      d="M 220 112
+         L 292 112
+         L 412 412
+         L 348 412
+         L 256 152
+         L 164 412
+         L 100 412
+         Z"
+      fill="#0D9488"
+    />
+
+    <!-- Crossbar cutout (painted over in bg color to carve gap) -->
+    <!-- Positioned ~55% up the height: y from 290 to 338 -->
+    <!-- Left edge x: interpolate left inner leg at y=290 and y=338 -->
+    <!-- Left inner leg goes from (256,152) to (164,412): dx/dy = (164-256)/(412-152) = -92/260 -->
+    <!-- At y=290: x = 256 + (290-152)*(-92/260) = 256 - 138*0.3538 = 256 - 48.8 ≈ 207 -->
+    <!-- At y=338: x = 256 + (338-152)*(-92/260) = 256 - 186*0.3538 = 256 - 65.8 ≈ 190 -->
+    <!-- Right inner leg goes from (256,152) to (348,412): dx/dy = (348-256)/(412-152) = 92/260 -->
+    <!-- At y=290: x = 256 + (290-152)*(92/260) = 256 + 48.8 ≈ 305 -->
+    <!-- At y=338: x = 256 + (338-152)*(92/260) = 256 + 65.8 ≈ 322 -->
+    <path
+      d="M 207 290
+         L 305 290
+         L 322 338
+         L 190 338
+         Z"
+      fill="#111111"
+    />
+  </g>
+  <g id="dot">
+    <!-- Recording dot: positioned to upper-right of apex -->
+    <circle cx="316" cy="96" r="26" fill="#EF4444"/>
+  </g>
+</svg>

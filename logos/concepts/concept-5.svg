@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+
+  <g id="bg">
+    <rect width="512" height="512" fill="#111111" rx="80"/>
+  </g>
+
+  <g id="mic">
+    <!-- Microphone capsule (upper portion, teal) -->
+    <rect x="196" y="100" width="120" height="180" rx="60" fill="#0D9488"/>
+    <!-- Mic stand vertical -->
+    <rect x="240" y="300" width="32" height="80" rx="8" fill="#0D9488"/>
+    <!-- Mic base arc -->
+    <path d="M176 340 Q176 420 256 420 Q336 420 336 340" stroke="#0D9488" stroke-width="32" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <g id="doc">
+    <!-- Document fragment overlapping upper-right of capsule -->
+    <rect x="230" y="110" width="140" height="170" rx="12" fill="#D97706"/>
+    <!-- Text lines on document -->
+    <rect x="252" y="148" width="96" height="18" rx="6" fill="#111111" opacity="0.55"/>
+    <rect x="252" y="186" width="80" height="18" rx="6" fill="#111111" opacity="0.55"/>
+    <rect x="252" y="224" width="88" height="18" rx="6" fill="#111111" opacity="0.55"/>
+  </g>
+
+</svg>
