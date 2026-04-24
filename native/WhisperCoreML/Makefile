@@ -80,7 +80,7 @@ build: $(CMAKE_BUILD)/Makefile
 install: build
 	@echo "==> Installing to $(OUTPUT_DYLIB)…"
 	@mkdir -p $(OUTPUT_DIR)
-	cp $(CMAKE_BUILD)/libwhisperjni.dylib $(OUTPUT_DYLIB)
+	cp $(CMAKE_BUILD)/libwhisper-jni.dylib $(OUTPUT_DYLIB)
 	@# Fix install name so System.load() can resolve dependencies at the load path
 	install_name_tool -id @rpath/libwhisperjni-coreml.dylib $(OUTPUT_DYLIB)
 	@echo "==> Done:"
