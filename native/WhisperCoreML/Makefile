@@ -56,7 +56,7 @@ configure: $(CMAKE_BUILD)/Makefile
 $(CMAKE_BUILD)/Makefile: $(WHISPER_JNI_DIR)/.git
 	@echo "==> Configuring CMake for $(ARCH) with WHISPER_COREML=ON…"
 	@mkdir -p $(CMAKE_BUILD)
-	cmake -S $(WHISPER_JNI_DIR)/src/main/cpp \
+	cmake -S $(WHISPER_JNI_DIR) \
 	      -B $(CMAKE_BUILD) \
 	      -DCMAKE_BUILD_TYPE=Release \
 	      -DCMAKE_OSX_ARCHITECTURES=$(ARCH) \
