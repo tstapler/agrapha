@@ -3,6 +3,7 @@
 build/
 *.gradle.kts.lock
 composeApp/build/
+!gradle/wrapper/gradle-wrapper.jar
 
 # IntelliJ / Android Studio
 .idea/
