@@ -4,6 +4,76 @@ Prioritized feature backlog derived from research into VoxType, BlahST, Handy, M
 
 ---
 
+## Feature Comparison
+
+Agrapha's core differentiator is its end-to-end local pipeline: dual-channel audio capture (mic + system audio via ScreenCaptureKit JNI), Whisper.cpp inference with CoreML acceleration, optional pyannote.audio speaker diarization, LLM-backed transcript correction and summarization, and Logseq export — all without a single byte leaving the machine. No peer reviewed combines all these stages in a single macOS-native desktop app at zero cost. The primary gap is on the input side: Agrapha captures meetings only through its own UI button; it lacks a global hotkey, push-to-talk mode, voice activity detection, and dictation paste — features that Handy, VoxType, and Hex treat as table stakes. On the engine side, Agrapha is locked to Whisper while peers offer Parakeet, Moonshine, and native Speech Framework alternatives. On the export side, SRT/VTT subtitle formats and JSON are absent, limiting downstream video-editing and automation workflows.
+
+### Comparison Table
+
+Symbol key: `✅` fully implemented · `⚠️` partial / limited · `❌` not implemented · `—` not applicable to this project's scope
+
+| Feature | Agrapha (current) | VoxType | BlahST | Handy | Meetily | WhisperKit / Hex | WhisperWriter / noScribe |
+|---|---|---|---|---|---|---|---|
+| **Audio capture** | | | | | | | |
+| Microphone recording | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| System audio capture | ✅ | — | — | — | ✅ | — | — |
+| Push-to-talk / hotkey recording | ❌ | ✅ | ✅ | ✅ | — | ✅ | ✅ |
+| Toggle mode (press once start, press once stop) | ❌ | ✅ | — | ✅ | — | ✅ | ✅ |
+| Continuous dictation loop | ❌ | — | ✅ | — | — | — | ✅ |
+| Voice Activity Detection (VAD / silence trimming) | ❌ | — | ✅ | ✅ | — | — | ✅ |
+| **Transcription** | | | | | | | |
+| Whisper engine | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Parakeet engine | ❌ | ✅ | — | ✅ | ✅ | ✅ | — |
+| Moonshine / SenseVoice / other ONNX engines | ❌ | ✅ | — | ✅ | — | — | — |
+| Custom vocabulary / initial_prompt injection | ⚠️ | ✅ | — | ✅ | — | ✅ | ✅ |
+| condition_on_previous_text (chunk conditioning) | ❌ | — | — | — | — | — | ✅ |
+| Filler word stripping | ❌ | — | — | ✅ | — | — | — |
+| Remote / server transcription endpoint | ❌ | ✅ | ✅ | — | — | — | ✅ |
+| **Speaker and structure** | | | | | | | |
+| Speaker diarization | ⚠️ | ⚠️ | — | — | ✅ | ✅ | ✅ |
+| Speaker label correction (UI) | ❌ | — | — | — | — | — | ✅ |
+| Inline transcript correction editor | ❌ | — | — | — | — | — | ✅ |
+| **LLM integration** | | | | | | | |
+| Transcript correction via LLM | ✅ | — | — | ✅ | — | — | — |
+| Summarization (key points / decisions / action items) | ✅ | ⚠️ | — | — | ✅ | — | — |
+| Multiple named prompts / prompt switching | ❌ | — | ✅ | ✅ | — | — | — |
+| One-shot speech-to-LLM assistant | ❌ | — | ✅ | — | — | — | — |
+| Apple Intelligence post-processing | ❌ | — | — | ✅ | — | — | — |
+| **Export and integrations** | | | | | | | |
+| Logseq export | ✅ | — | — | — | — | — | — |
+| Obsidian / plain markdown | ❌ | — | — | — | — | — | — |
+| JSON export | ❌ | ✅ | — | — | — | — | — |
+| SRT subtitle export | ❌ | ✅ | — | — | — | ✅ | — |
+| VTT subtitle export | ❌ | ✅ | — | — | — | ✅ | — |
+| Transcription history / search | ✅ | — | — | ✅ | — | — | — |
+| Meeting app auto-detection (Zoom / Teams auto-start) | ⚠️ | — | — | — | ✅ | — | — |
+| Raycast / external app integration | ❌ | — | — | ✅ | — | — | — |
+| MCP server | ❌ | — | — | — | ✅ | — | — |
+| **UX and platform** | | | | | | | |
+| macOS support | ✅ | — | — | ✅ | ✅ | ✅ | ✅ |
+| Windows support | ❌ | — | — | ✅ | ✅ | — | ✅ |
+| Linux support | ❌ | ✅ | ✅ | ✅ | ⚠️ | — | ✅ |
+| Menu bar status indicator | ⚠️ | ✅ | — | ✅ | — | — | — |
+| Audio feedback (start / stop sounds) | ❌ | ✅ | — | ✅ | — | — | — |
+| Model auto-unload (idle memory reclaim) | ❌ | ✅ | — | ✅ | — | — | — |
+
+**Notes on Agrapha partial (⚠️) rows:**
+
+- **Custom vocabulary / initial_prompt injection** — `WhisperService.transcribe()` accepts an `initialPrompt` parameter and passes it to `WhisperFullParams.initialPrompt`; the default is hard-coded to `"This is a software engineering meeting."` and `AppSettings.whisperInitialPrompt` is persisted, but there is no UI to manage a per-user word list or inject custom terms alongside the meeting-type hint.
+- **Speaker diarization** — The full `PyannoteDiarizationBackend` + `DiarizationService` pipeline is implemented and wired into `PipelineOrchestrator` stage 1; it requires a Python sidecar (`diarize_session.py`) and a Hugging Face token, and the toggle is in Settings. However speaker-label correction UI and real-time diarization are absent.
+- **Meeting app auto-detection** — `MeetingDetector` polls for Zoom (`CptHost` process) and Google Meet (AppleScript window-title scan for Chrome/Edge/Arc/Brave) and exposes an `activeMeeting` flow; `AppSettings` has `autoRecordZoom` and `autoRecordGoogleMeet` toggles; but only Zoom and Google Meet are supported (no Teams, FaceTime, or Webex) and the auto-start is invite-only via UI confirmation, not fully autonomous.
+- **Menu bar status indicator** — `MenuBarManager` is fully implemented using `java.awt.SystemTray` with idle/recording icon states, a popup menu, and tooltip text; on macOS the AWT tray icon renders as a clunky square icon in the menu bar rather than a native `NSStatusItem`, limiting visual quality.
+
+### What Agrapha Has That Peers Don't
+
+- **Dual-channel audio capture (mic + system audio simultaneously)** — No other reviewed project captures both channels at once and stores them as a stereo WAV with per-channel speaker labeling. Meetily captures both but without the per-channel JNI architecture.
+- **Logseq-native export with journal backlinks** — Meeting pages are written as Logseq Markdown with `[[wikilinks]]`, timestamped block bullets, and a dated journal entry backlink. No peer integrates with a personal knowledge graph out of the box.
+- **Structured summary: key points, decisions, and action items with owner + due-date fields** — Agrapha's `MeetingSummary` model and LLM parser extract structured action items including owner and due date. Peers that summarize produce plain prose or bullet lists without this structure.
+- **Retranscription from stored audio** — The Transcript screen exposes a "Re-transcribe" action against the stored audio file, allowing users to apply a newer model or settings change to a past meeting without re-recording it.
+- **Open-source, auditable, ELv2 licensed** — Every line of the capture, transcription, diarization, LLM, and export pipeline is in the repository. Competing macOS-native tools (Granola, MacWhisper, talat) are closed source.
+
+---
+
 ## HIGH PRIORITY
 
 ---
