@@ -6,20 +6,27 @@ import java.io.File
 import java.nio.file.Files
 
 /**
- * JNI bridge object for the PipeWire native library.
+ * JNI bridge object for the Rust native library (libagrapha_native.so).
  *
- * Mirrors [ScreenCaptureJniBridge] in structure: fast path via [System.loadLibrary],
- * slow path via classpath resource extraction to a temp directory.
+ * Contains both PipeWire audio capture and global hotkey JNI exports.
+ * Built by `cargo build --release` in native/agrapha-native/ via the
+ * Gradle `buildAgraphaNative` task.
+ *
+ * Load order:
+ *  1. Fast path: [System.loadLibrary] (works when -Djava.library.path points at the .so)
+ *  2. Slow path: extract libagrapha_native.so from classpath resources to a temp dir
  */
 internal object PipeWireCaptureJniBridge {
 
     @Volatile private var loaded = false
     @Volatile private var loadFailed = false
 
+    private const val LIB_RESOURCE = "/libagrapha_native.so"
+    private const val LIB_NAME     = "agrapha_native"
+
     /**
-     * Load libpipewire-jni.so. Returns true if loaded successfully; false if the
-     * library is absent from classpath resources (i.e. `make` was never run).
-     * Safe to call multiple times.
+     * Load libagrapha_native.so. Returns true if loaded; false if absent.
+     * Safe to call multiple times — subsequent calls are no-ops.
      */
     fun tryLoad(): Boolean {
         if (loaded) return true
@@ -28,20 +35,21 @@ internal object PipeWireCaptureJniBridge {
             if (loaded) return true
             if (loadFailed) return false
             try {
-                System.loadLibrary("pipewire-jni")
+                System.loadLibrary(LIB_NAME)
                 loaded = true
                 true
             } catch (_: UnsatisfiedLinkError) {
-                // Slow path: extract from classpath resource
-                val stream = PipeWireCaptureJniBridge::class.java.getResourceAsStream("/libpipewire-jni.so")
+                val stream = PipeWireCaptureJniBridge::class.java.getResourceAsStream(LIB_RESOURCE)
                 if (stream == null) {
-                    System.err.println("[PipeWireCaptureJniBridge] libpipewire-jni.so not found in classpath. " +
-                        "Build it by running: cd native/PipeWireCaptureBridge && make")
+                    System.err.println(
+                        "[PipeWireCaptureJniBridge] $LIB_RESOURCE not found in classpath. " +
+                        "Build it: cd native/agrapha-native && cargo build --release"
+                    )
                     loadFailed = true
                     false
                 } else {
-                    val tmpDir = Files.createTempDirectory("agrapha-pipewire-jni").toFile()
-                    val dest = File(tmpDir, "libpipewire-jni.so")
+                    val tmpDir = Files.createTempDirectory("agrapha-native-jni").toFile()
+                    val dest = File(tmpDir, "libagrapha_native.so")
                     stream.use { src -> dest.outputStream().use { dst -> src.copyTo(dst) } }
                     System.load(dest.absolutePath)
                     loaded = true

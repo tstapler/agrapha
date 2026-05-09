@@ -64,44 +64,51 @@ kotlin {
     }
 }
 
-// ── PipeWire native bridge (Linux only) ───────────────────────────────────────
-val buildPipeWireCaptureBridge by tasks.registering(Exec::class) {
-    description = "Build libpipewire-jni.so from native/PipeWireCaptureBridge/ (Linux only)"
+// ── Rust native bridge (Linux only) ──────────────────────────────────────────
+// Builds libagrapha_native.so containing PipeWire audio capture and global
+// hotkey (X11 + Wayland portal) JNI exports.
+// Requires: rustup (stable), libpipewire-0.3-dev, libx11-xcb-dev
+val buildAgraphaNative by tasks.registering(Exec::class) {
+    description = "Build libagrapha_native.so via Cargo (Linux only)"
     group = "build"
 
-    // Only enabled on Linux; no-op on macOS/Windows
     enabled = OperatingSystem.current().isLinux
 
-    workingDir = rootProject.file("native/PipeWireCaptureBridge")
-    commandLine("make")
+    workingDir = rootProject.file("native/agrapha-native")
+    commandLine("cargo", "build", "--release")
 
-    inputs.files(
-        rootProject.file("native/PipeWireCaptureBridge/jni/PipeWireCaptureBridgeJNI.c"),
-        rootProject.file("native/PipeWireCaptureBridge/jni/PipeWireCaptureBridgeJNI.h"),
-        rootProject.file("native/PipeWireCaptureBridge/Makefile"),
-    )
+    inputs.dir(rootProject.file("native/agrapha-native/src"))
+    inputs.file(rootProject.file("native/agrapha-native/Cargo.toml"))
     outputs.file(
-        project.file("src/desktopMain/resources/libpipewire-jni.so")
+        rootProject.file("native/agrapha-native/target/release/libagrapha_native.so")
     )
+
+    doLast {
+        // Copy the compiled .so into classpath resources
+        val src = rootProject.file("native/agrapha-native/target/release/libagrapha_native.so")
+        val dst = project.file("src/desktopMain/resources/libagrapha_native.so")
+        dst.parentFile.mkdirs()
+        src.copyTo(dst, overwrite = true)
+    }
 }
 
 // Wire into the resource processing step so the .so is on the classpath before run/package.
 tasks.named("desktopProcessResources") {
     if (OperatingSystem.current().isLinux) {
-        dependsOn(buildPipeWireCaptureBridge)
+        dependsOn(buildAgraphaNative)
     }
 }
 
 // Allow `./gradlew clean` to also remove the native artifact.
-val cleanPipeWireCaptureBridge by tasks.registering(Exec::class) {
+val cleanAgraphaNative by tasks.registering(Exec::class) {
     enabled = OperatingSystem.current().isLinux
-    workingDir = rootProject.file("native/PipeWireCaptureBridge")
-    commandLine("make", "clean")
+    workingDir = rootProject.file("native/agrapha-native")
+    commandLine("cargo", "clean")
 }
 
 tasks.named("clean") {
     if (OperatingSystem.current().isLinux) {
-        dependsOn(cleanPipeWireCaptureBridge)
+        dependsOn(cleanAgraphaNative)
     }
 }
 

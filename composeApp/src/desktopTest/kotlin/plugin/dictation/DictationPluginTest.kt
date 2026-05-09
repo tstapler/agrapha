@@ -2,7 +2,10 @@ package com.meetingnotes.plugin.dictation
 
 import com.meetingnotes.dictation.TextInjector
 import com.meetingnotes.dictation.plugin.DictationPlugin
+import com.meetingnotes.hotkey.HotkeyService
 import com.meetingnotes.plugin.DictationMode
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -60,9 +63,49 @@ class DictationPluginTest {
     }
 
     @Test
-    fun `PUSH_TO_TALK activate returns success (in-window MVP mode)`() {
-        val plugin = DictationPlugin()
+    fun `PUSH_TO_TALK activate returns success regardless of hotkey availability`() {
+        // With hotkey unavailable — falls back to UI trigger only
+        val unavailableBridge = object : HotkeyService.HotkeyBridge {
+            override fun isSupported() = false
+            override fun waitOnce(keyCode: Int, modifiers: Int, timeoutMs: Long) = false
+            override fun interrupt() {}
+            override fun backendDescription() = "test-unavailable"
+        }
+        val plugin = DictationPlugin(hotkeyService = HotkeyService(bridge = unavailableBridge))
         val result = runBlocking { plugin.activate(DictationMode.PUSH_TO_TALK, emptyMap()) }
-        assertTrue(result.isSuccess, "PUSH_TO_TALK activate must succeed in in-window MVP mode")
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun `PUSH_TO_TALK with available hotkey starts listener coroutine`() = runBlocking {
+        var waitCalled = false
+        val bridge = object : HotkeyService.HotkeyBridge {
+            override fun isSupported() = true
+            override fun waitOnce(keyCode: Int, modifiers: Int, timeoutMs: Long): Boolean {
+                waitCalled = true
+                return false // always timeout so no dictation is triggered
+            }
+            override fun interrupt() {}
+            override fun backendDescription() = "test-x11"
+        }
+        val plugin = DictationPlugin(hotkeyService = HotkeyService(bridge = bridge))
+        plugin.activate(DictationMode.PUSH_TO_TALK, emptyMap())
+        delay(150) // allow listener loop to call waitOnce at least once
+        plugin.deactivate()
+        assertTrue(waitCalled, "HotkeyService listener should have called waitOnce")
+    }
+
+    @Test
+    fun `deactivate calls hotkey stop`() = runBlocking {
+        var stopped = false
+        val bridge = object : HotkeyService.HotkeyBridge {
+            override fun isSupported() = true
+            override fun waitOnce(keyCode: Int, modifiers: Int, timeoutMs: Long) = false
+            override fun interrupt() { stopped = true }
+            override fun backendDescription() = "test"
+        }
+        val plugin = DictationPlugin(hotkeyService = HotkeyService(bridge = bridge))
+        plugin.deactivate()
+        assertTrue(stopped)
     }
 }

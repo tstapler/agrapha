@@ -3,8 +3,8 @@ package com.meetingnotes.dictation.plugin
 import com.meetingnotes.audio.MicCaptureService
 import com.meetingnotes.dictation.AutoDetectTextInjector
 import com.meetingnotes.dictation.TextInjector
-import com.meetingnotes.dictation.TextInjectorUnavailableException
 import com.meetingnotes.domain.model.TranscriptSegment
+import com.meetingnotes.hotkey.HotkeyService
 import com.meetingnotes.plugin.DictationMode
 import com.meetingnotes.plugin.PluginException
 import com.meetingnotes.plugin.SpeechOutputPlugin
@@ -29,6 +29,7 @@ import java.io.File
 class DictationPlugin(
     internal val whisperService: WhisperService? = null,
     internal val textInjector: TextInjector = AutoDetectTextInjector(),
+    internal val hotkeyService: HotkeyService = HotkeyService(),
 ) : SpeechOutputPlugin {
 
     override val id: String = "com.agrapha.dictation"
@@ -61,6 +62,7 @@ class DictationPlugin(
     }
 
     override suspend fun deactivate() {
+        hotkeyService.stop()
         liveScope?.cancel()
         liveScope = null
         activeMode = null
@@ -70,13 +72,29 @@ class DictationPlugin(
     // ── PUSH_TO_TALK ─────────────────────────────────────────────────────────
 
     private fun activatePushToTalk(config: Map<String, String>): Result<Unit> {
-        // MVP: in-window focus shortcut only — global hotkey on Wayland requires
-        // xdg-desktop-portal GlobalShortcuts (portal ≥ 1.16 / GNOME 46+ / KDE Plasma 6).
-        // Full portal integration is a follow-up story (ADR-003).
+        if (!hotkeyService.isAvailable) {
+            System.err.println(
+                "[DictationPlugin] PUSH_TO_TALK: global hotkey unavailable " +
+                "(${hotkeyService.backendDescription}). " +
+                "Use triggerDictation() from the UI button instead."
+            )
+            // Not an error — the plugin still works via the UI trigger button
+            return Result.success(Unit)
+        }
+
         System.err.println(
-            "[DictationPlugin] PUSH_TO_TALK activated (in-window focus mode). " +
-            "Global hotkey requires compositor portal support — see Settings."
+            "[DictationPlugin] PUSH_TO_TALK: starting global hotkey listener " +
+            "(backend: ${hotkeyService.backendDescription})"
         )
+
+        liveScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        liveScope!!.launch {
+            hotkeyService.listen {
+                System.err.println("[DictationPlugin] PUSH_TO_TALK hotkey fired — triggering dictation")
+                triggerDictation()
+            }
+        }
+
         return Result.success(Unit)
     }
 
