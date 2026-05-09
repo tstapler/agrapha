@@ -2,7 +2,7 @@
 
 ## Summary
 
-Five additional open-source local-first STT and meeting-transcription projects were identified beyond the three seed projects. The most Agrapha-relevant are Meetily (meeting assistant closest in intent to Agrapha), OpenWhispr (macOS-native, VA + calendar integration, local diarization), and whisper-writer (four recording modes, VAD, continuous recording). All are MIT-licensed. Cloud-only tools and mobile-only apps were excluded.
+Five additional open-source local-first STT and meeting-transcription projects were identified beyond the three seed projects. The most Agrapha-relevant are Meetily (meeting assistant closest in intent to Agrapha), OpenWhispr (macOS-native, VA + calendar integration, local diarization), and whisper-writer (four recording modes, VAD, continuous recording). Licenses are mixed: MIT for most projects (Meetily, OpenWhispr, open-wispr), GPL-3.0 for noScribe (patterns only — no code reuse), and unspecified for whisper-mac (inspiration only). Cloud-only tools and mobile-only apps were excluded.
 
 ---
 
@@ -91,7 +91,7 @@ Meetily is the closest peer to Agrapha in intent (meeting minutes + summaries + 
 **URL**: https://github.com/savbell/whisper-writer
 **Stars**: 1,049
 **Language**: Python (PyQt5 GUI, faster-whisper)
-**License**: MIT (implied — no LICENSE file found but standard open-source practices stated)
+**License**: Unconfirmed (no LICENSE file in repo)
 **Platform**: Windows, macOS, Linux
 
 ### Feature Inventory
@@ -119,7 +119,7 @@ Meetily is the closest peer to Agrapha in intent (meeting minutes + summaries + 
 
 ### Attribution Note
 
-> Continuous recording mode with previous-text conditioning and four recording mode design inspired by [WhisperWriter](https://github.com/savbell/whisper-writer) (MIT).
+> Continuous recording mode with previous-text conditioning and four recording mode design inspired by [WhisperWriter](https://github.com/savbell/whisper-writer) (license unconfirmed).
 
 ---
 
@@ -180,9 +180,9 @@ Meetily is the closest peer to Agrapha in intent (meeting minutes + summaries + 
 - **macOS native Speech framework as a fast/free engine**: SFSpeechRecognizer runs on-device (no download), supports English well, and is already optimised by Apple. Could be offered as the "quick start" engine before a user has downloaded a Whisper model. Latency is ~100–200 ms for short utterances
 - Note: SFSpeechRecognizer sends audio to Apple servers by default unless `requiresOnDeviceRecognition = true` is set (available iOS 13+ / macOS 12+). This restriction must be surfaced to users in Agrapha's privacy model
 
-### Attribution Note
+### Inspiration Reference
 
-> macOS native Speech framework engine integration pattern noted from [whisper-mac](https://github.com/Explosion-Scratch/whisper-mac).
+> macOS native Speech framework engine integration pattern noted from [whisper-mac](https://github.com/Explosion-Scratch/whisper-mac). License unspecified — inspiration only, not for attribution in README.
 
 ---
 

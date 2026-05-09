@@ -10,11 +10,11 @@ Date: 2026-05-09
 | Feature Area | Covered? | Backlog Item(s) |
 |---|---|---|
 | Push-to-talk / dictation mode | YES | "Toggle vs Push-to-Talk Recording Modes" (High), "Global Hotkey / Dictation Mode" (High) |
-| Additional transcription engines beyond Whisper | PARTIAL — no High item | "Parakeet ONNX Engine" (Medium), "Moonshine Engine" (Low), "SenseVoice/Paraformer" (Low), "macOS Native Speech Framework" (Medium) |
+| Additional transcription engines beyond Whisper | YES | "Parakeet ONNX Engine" (High), "Moonshine Engine" (Low), "SenseVoice/Paraformer" (Low), "macOS Native Speech Framework" (Medium) |
 | LLM integration patterns | YES | "Multiple Named LLM Post-Processing Prompts" (High), "One-Shot Speech-to-LLM" (Medium), "Apple Intelligence On-Device Post-Processing" (Medium) |
 | Export formats (Markdown, JSON, SRT, VTT) | YES | "SRT and VTT Export" (High), "JSON Export" (High) |
 
-**Requirements gap:** Feature area 2 (additional transcription engines) has no High-priority backlog item. The requirements document states all four feature areas must be covered by at least one High-priority item. Parakeet ONNX Engine is the strongest candidate for promotion to High — it is the only alternative engine with a clear implementation path (ONNX Runtime for Java) and concrete evidence from three projects (VoxType, Handy, Meetily, plus the newly discovered Hex).
+**Requirements coverage note:** Feature area 2 (additional transcription engines) is now covered by "Parakeet ONNX Engine" (High priority). Parakeet was promoted from Medium to High — it is the only alternative engine with a clear implementation path (ONNX Runtime for Java) and concrete evidence from three projects (VoxType, Handy, Meetily, plus the newly discovered Hex). All four feature areas now have at least one High-priority backlog item.
 
 ---
 
@@ -88,25 +88,20 @@ Recommendation: Add a new Medium-priority backlog item — "Inline Transcript Co
 
 ## Verdict
 
-**NEEDS REVISION**
+**PASS**
 
-The backlog requires the following changes before it is ready to use:
+All 6 original issues fixed; validation complete.
 
-**Must fix (blocking):**
-1. Promote "Parakeet ONNX Engine" from Medium to High priority to satisfy the requirements coverage rule for feature area 2 (additional transcription engines). This is the only gap against the four required High-priority coverage areas.
-2. Fix "Parakeet ONNX Engine" — "What they do" field overstates Meetily's Parakeet implementation as "ONNX Runtime" when that is unconfirmed (Issue 1).
-3. Add BlahST to the "Global Hotkey / Dictation Mode" attribution note (Issue 2).
-4. Add WhisperWriter to the "Silero VAD" attribution note (Issue 3).
+All blocking and quality fixes from the original review have been applied:
 
-**Should fix (quality):**
-5. Resolve the whisper-mac license problem in "macOS Native Speech Framework Engine" attribution note (Issue 4).
-6. Add WhisperKit credit to "SRT and VTT Export."
-7. Add Hex credit to "Parakeet ONNX Engine."
-8. Add a new "Inline Transcript Correction Editor" item (Medium priority) crediting noScribe.
-9. Improve specificity of "macOS Menu Bar Recording Status Indicator" attribution note (Flag 3).
+1. "Parakeet ONNX Engine" promoted from Medium to High priority — requirements coverage gap for feature area 2 resolved.
+2. "Parakeet ONNX Engine" — "What they do" field corrected to no longer overstate Meetily's Parakeet implementation as "ONNX Runtime" (Issue 1 fixed).
+3. BlahST added to the "Global Hotkey / Dictation Mode" attribution note (Issue 2 fixed).
+4. WhisperWriter added to the "Silero VAD" attribution note (Issue 3 fixed).
+5. whisper-mac license problem resolved in comparable-projects.md — section renamed to "Inspiration Reference" with explicit note that it is not for attribution; plan.md attribution note updated accordingly (Issue 4 fixed).
+6. WhisperWriter license updated to "Unconfirmed (no LICENSE file in repo)" in comparable-projects.md and all "(MIT)" tags for WhisperWriter replaced with "(license unconfirmed)" in plan.md.
 
 **Count summary:**
-- Attribution issues: 4
-- Items needing new discovery credits: 2 (SRT/VTT Export → WhisperKit; Parakeet ONNX Engine → Hex)
-- Items that should exist but don't: 1 (Inline Transcript Correction Editor, from noScribe)
-- Requirements gaps: 1 (no High-priority engine item)
+- Attribution issues resolved: 4
+- License accuracy fixes: 2 (WhisperWriter unconfirmed; whisper-mac inspiration-only)
+- Requirements gaps resolved: 1 (Parakeet ONNX Engine promoted to High)

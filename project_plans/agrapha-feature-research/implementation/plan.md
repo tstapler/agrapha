@@ -13,7 +13,7 @@ Prioritized feature backlog derived from research into VoxType, BlahST, Handy, M
 **Inspired by:** [Handy](https://github.com/cjpais/Handy), [WhisperWriter](https://github.com/savbell/whisper-writer)
 **What they do:** Handy accepts a `custom_words` list that is injected as Whisper's `initial_prompt` parameter and as a Parakeet custom vocabulary, with fuzzy-match post-correction. WhisperWriter exposes `initial_prompt` directly as a config field for domain conditioning.
 **What Agrapha would do:** Allow users to define a persistent list of names, project codes, and technical terms; inject them as Whisper's `initial_prompt` via the existing JNI bridge so beam search favors those tokens, with optional fuzzy-match correction post-transcription.
-**Attribution note (README):** Custom vocabulary / dictionary injection pattern inspired by [Handy](https://github.com/cjpais/Handy) (MIT) and [WhisperWriter](https://github.com/savbell/whisper-writer) (MIT).
+**Attribution note (README):** Custom vocabulary / dictionary injection pattern inspired by [Handy](https://github.com/cjpais/Handy) (MIT) and [WhisperWriter](https://github.com/savbell/whisper-writer) (license unconfirmed).
 **Effort estimate:** S
 **Notes:** `WhisperParams` in Agrapha's JNI bridge already has an `initial_prompt` field — this is mostly UI + persistence (SQLDelight) work. Fuzzy-match post-correction is optional and can ship in a follow-up.
 
@@ -46,7 +46,7 @@ Prioritized feature backlog derived from research into VoxType, BlahST, Handy, M
 **Inspired by:** [VoxType](https://github.com/peteonrails/voxtype), [Handy](https://github.com/cjpais/Handy), [WhisperWriter](https://github.com/savbell/whisper-writer)
 **What they do:** All three expose a boolean toggle between push-to-talk (hold key → recording, release → transcribe) and toggle modes (press once to start, press again to stop). WhisperWriter additionally offers a `continuous` mode (auto-restart after each segment) and a `voice_activity_detection` mode.
 **What Agrapha would do:** Add a `RecordingMode` enum (`MEETING_CONTINUOUS`, `TOGGLE`, `PUSH_TO_TALK`) to the settings UI. Meeting mode remains the default; toggle and push-to-talk are available for dictation use cases. VAD-based auto-stop can be a follow-up.
-**Attribution note (README):** Toggle and push-to-talk recording mode design inspired by [VoxType](https://github.com/peteonrails/voxtype) (MIT), [Handy](https://github.com/cjpais/Handy) (MIT), and [WhisperWriter](https://github.com/savbell/whisper-writer) (MIT).
+**Attribution note (README):** Toggle and push-to-talk recording mode design inspired by [VoxType](https://github.com/peteonrails/voxtype) (MIT), [Handy](https://github.com/cjpais/Handy) (MIT), and [WhisperWriter](https://github.com/savbell/whisper-writer) (license unconfirmed).
 **Effort estimate:** S
 **Notes:** Requires a global hotkey listener on macOS (see Global Hotkey / Dictation Mode feature). The mode enum should be persisted in the existing settings store.
 
@@ -68,7 +68,7 @@ Prioritized feature backlog derived from research into VoxType, BlahST, Handy, M
 **Inspired by:** [WhisperWriter](https://github.com/savbell/whisper-writer)
 **What they do:** WhisperWriter passes the previous transcription chunk's text as Whisper's `initial_prompt` for the next chunk, reducing repetition artifacts and improving coherence across segment boundaries in continuous recordings.
 **What Agrapha would do:** In meeting (continuous) mode, automatically carry forward the last N words of the previous transcription segment as the Whisper `initial_prompt` for the next segment, improving transcript coherence without any user action.
-**Attribution note (README):** Previous-chunk text conditioning for continuous transcription inspired by [WhisperWriter](https://github.com/savbell/whisper-writer) (MIT).
+**Attribution note (README):** Previous-chunk text conditioning for continuous transcription inspired by [WhisperWriter](https://github.com/savbell/whisper-writer) (license unconfirmed).
 **Effort estimate:** XS
 **Notes:** One-line change in the transcription loop to set `initial_prompt = last_segment_tail`. Synergizes with the custom vocabulary feature (both write to `initial_prompt`; concatenate both). Cap at ~224 tokens to stay within Whisper's context window.
 
@@ -118,6 +118,17 @@ Prioritized feature backlog derived from research into VoxType, BlahST, Handy, M
 
 ---
 
+## Feature: Parakeet ONNX Engine
+**Priority:** High
+**Inspired by:** [VoxType](https://github.com/peteonrails/voxtype), [Handy](https://github.com/cjpais/Handy), [Hex](https://github.com/kitlangton/Hex)
+**What they do:** VoxType and Handy support NVIDIA Parakeet (FastConformer TDT) via ONNX Runtime as an alternative to Whisper, offering ~5× real-time throughput on CPU with comparable English accuracy and no GPU required. Meetily also supports Parakeet models (implementation details not confirmed in available source). Hex provides a production Swift implementation of dual-engine Parakeet+Whisper switching with a user-facing toggle on macOS (Apple Silicon).
+**What Agrapha would do:** Add Parakeet as a selectable transcription engine via ONNX Runtime for Java (onnxruntime-java), allowing users on lower-power Macs or with large meeting backlogs to transcribe faster without waiting for Whisper large-v3.
+**Attribution note (README):** Parakeet ONNX engine integration pattern inspired by [VoxType](https://github.com/peteonrails/voxtype) (MIT) and [Handy](https://github.com/cjpais/Handy) (MIT); multi-engine toggle design pattern from [Hex](https://github.com/kitlangton/Hex) (MIT).
+**Effort estimate:** L
+**Notes:** ONNX Runtime has an official Java API (`com.microsoft.onnxruntime:onnxruntime`). Parakeet is English-only; diarization integration needs re-validation. Model download (~500 MB) must be handled gracefully. Abstract a `TranscriptionEngine` interface first so Whisper and Parakeet share a common caller.
+
+---
+
 ## MEDIUM PRIORITY
 
 ---
@@ -133,23 +144,12 @@ Prioritized feature backlog derived from research into VoxType, BlahST, Handy, M
 
 ---
 
-## Feature: Parakeet ONNX Engine
-**Priority:** High
-**Inspired by:** [VoxType](https://github.com/peteonrails/voxtype), [Handy](https://github.com/cjpais/Handy), [Hex](https://github.com/kitlangton/Hex)
-**What they do:** VoxType and Handy support NVIDIA Parakeet (FastConformer TDT) via ONNX Runtime as an alternative to Whisper, offering ~5× real-time throughput on CPU with comparable English accuracy and no GPU required. Meetily also supports Parakeet models (implementation details not confirmed in available source). Hex provides a production Swift implementation of dual-engine Parakeet+Whisper switching with a user-facing toggle on macOS (Apple Silicon).
-**What Agrapha would do:** Add Parakeet as a selectable transcription engine via ONNX Runtime for Java (onnxruntime-java), allowing users on lower-power Macs or with large meeting backlogs to transcribe faster without waiting for Whisper large-v3.
-**Attribution note (README):** Parakeet ONNX engine integration pattern inspired by [VoxType](https://github.com/peteonrails/voxtype) (MIT) and [Handy](https://github.com/cjpais/Handy) (MIT); multi-engine toggle design pattern from [Hex](https://github.com/kitlangton/Hex) (MIT).
-**Effort estimate:** L
-**Notes:** ONNX Runtime has an official Java API (`com.microsoft.onnxruntime:onnxruntime`). Parakeet is English-only; diarization integration needs re-validation. Model download (~500 MB) must be handled gracefully. Abstract a `TranscriptionEngine` interface first so Whisper and Parakeet share a common caller.
-
----
-
 ## Feature: Silero VAD (Voice Activity Detection)
 **Priority:** Medium
 **Inspired by:** [Handy](https://github.com/cjpais/Handy), [WhisperWriter](https://github.com/savbell/whisper-writer)
 **What they do:** Handy uses a `SmoothedVad` wrapper over Silero VAD to trim leading/trailing silence from each audio chunk before sending to Whisper, reducing hallucinations and inference latency. WhisperWriter makes the silence duration configurable.
 **What Agrapha would do:** Integrate Silero VAD (ONNX model, ~1 MB) via ONNX Runtime for Java to detect and trim silence from each meeting audio chunk before Whisper inference, reducing hallucination artifacts and improving transcription of meeting segments with long pauses.
-**Attribution note (README):** Silero VAD integration for silence trimming inspired by [Handy](https://github.com/cjpais/Handy) (MIT) and [WhisperWriter](https://github.com/savbell/whisper-writer) (MIT).
+**Attribution note (README):** Silero VAD integration for silence trimming inspired by [Handy](https://github.com/cjpais/Handy) (MIT) and [WhisperWriter](https://github.com/savbell/whisper-writer) (license unconfirmed).
 **Effort estimate:** M
 **Notes:** Silero VAD ONNX model is ~1 MB; inference is CPU-only and fast. Requires ONNX Runtime dependency (shared with Parakeet if that ships first). For meeting mode, VAD primarily reduces hallucination on silence; for dictation mode, it enables auto-stop. Both use cases justify the dependency.
 
