@@ -64,52 +64,61 @@ kotlin {
     }
 }
 
-// ── Rust native bridge (Linux only) ──────────────────────────────────────────
-// Builds libagrapha_native.so containing PipeWire audio capture and global
-// hotkey (X11 + Wayland portal) JNI exports.
-// Requires: rustup (stable), libpipewire-0.3-dev, libx11-xcb-dev
-val buildAgraphaNative by tasks.registering(Exec::class) {
-    description = "Build libagrapha_native.so via Cargo (Linux only)"
-    group = "build"
+// ── Rust native bridge (all platforms via Cargo) ──────────────────────────────
+// Single crate for all platforms:
+//   Linux  → libagrapha_native.so  (PipeWire audio + X11/Wayland hotkeys)
+//   macOS  → libagrapha_native.dylib (ScreenCaptureKit audio via objc2)
+//
+// Prerequisites:
+//   All:   rustup (stable toolchain)
+//   Linux: libpipewire-0.3-dev, libx11-xcb-dev
+//   macOS: Xcode Command Line Tools (for linker + Apple SDK frameworks)
+val os = OperatingSystem.current()
+val isLinux = os.isLinux
+val isMacOs = os.isMacOsX
 
-    enabled = OperatingSystem.current().isLinux
+val nativeLibName = when {
+    isLinux -> "libagrapha_native.so"
+    isMacOs -> "libagrapha_native.dylib"
+    else    -> null
+}
+
+val buildAgraphaNative by tasks.registering(Exec::class) {
+    description = "Build libagrapha_native via Cargo"
+    group = "build"
+    enabled = isLinux || isMacOs
 
     workingDir = rootProject.file("native/agrapha-native")
     commandLine("cargo", "build", "--release")
 
     inputs.dir(rootProject.file("native/agrapha-native/src"))
     inputs.file(rootProject.file("native/agrapha-native/Cargo.toml"))
-    outputs.file(
-        rootProject.file("native/agrapha-native/target/release/libagrapha_native.so")
-    )
+    if (nativeLibName != null) {
+        outputs.file(rootProject.file("native/agrapha-native/target/release/$nativeLibName"))
+    }
 
     doLast {
-        // Copy the compiled .so into classpath resources
-        val src = rootProject.file("native/agrapha-native/target/release/libagrapha_native.so")
-        val dst = project.file("src/desktopMain/resources/libagrapha_native.so")
-        dst.parentFile.mkdirs()
-        src.copyTo(dst, overwrite = true)
+        if (nativeLibName != null) {
+            val src = rootProject.file("native/agrapha-native/target/release/$nativeLibName")
+            val dst = project.file("src/desktopMain/resources/$nativeLibName")
+            dst.parentFile.mkdirs()
+            src.copyTo(dst, overwrite = true)
+        }
     }
 }
 
-// Wire into the resource processing step so the .so is on the classpath before run/package.
 tasks.named("desktopProcessResources") {
-    if (OperatingSystem.current().isLinux) {
-        dependsOn(buildAgraphaNative)
-    }
+    if (isLinux || isMacOs) dependsOn(buildAgraphaNative)
 }
 
-// Allow `./gradlew clean` to also remove the native artifact.
 val cleanAgraphaNative by tasks.registering(Exec::class) {
-    enabled = OperatingSystem.current().isLinux
+    enabled = isLinux || isMacOs
     workingDir = rootProject.file("native/agrapha-native")
     commandLine("cargo", "clean")
 }
 
 tasks.named("clean") {
-    if (OperatingSystem.current().isLinux) {
-        dependsOn(cleanAgraphaNative)
-    }
+    if (isLinux || isMacOs) dependsOn(cleanAgraphaNative)
 }
 
 sqldelight {
