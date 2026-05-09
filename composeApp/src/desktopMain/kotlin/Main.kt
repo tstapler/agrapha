@@ -6,6 +6,7 @@ import com.meetingnotes.data.FileStorageService
 import com.meetingnotes.data.MeetingRepository
 import com.meetingnotes.data.SettingsRepository
 import com.meetingnotes.data.createDatabase
+import com.meetingnotes.dictation.plugin.DictationPlugin
 import com.meetingnotes.ui.AppRoot
 
 fun main() = application {
@@ -17,10 +18,12 @@ fun main() = application {
     val db = createDatabase()
     val repository = MeetingRepository(db)
     val settingsRepository = SettingsRepository(db)
+    val dictationPlugin = DictationPlugin()
 
     AppRoot(
         repository = repository,
         settingsRepository = settingsRepository,
         storage = storage,
+        dictationPlugin = dictationPlugin,
     )
 }

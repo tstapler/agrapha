@@ -23,6 +23,20 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            native/agrapha-native/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('native/agrapha-native/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       # Whisper JNI strategy: the whisper-jni Maven artifact (v1.6.1) bundles a
       # CPU-only dylib; CoreML acceleration requires building from source.
       # Spike ADR-004: once whisper-jni 1.7.1 is verified to include a macOS arm64
@@ -37,11 +51,6 @@ jobs:
         run: |
           brew install cmake
           cd native/WhisperCoreML
-          make
-
-      - name: Build AudioCaptureBridge dylib
-        run: |
-          cd native/AudioCaptureBridge
           make
 
       - name: Cache Gradle
@@ -59,3 +68,56 @@ jobs:
 
       - name: Build DMG (verification only)
         run: ./gradlew :composeApp:packageReleaseDmg --no-daemon
+
+  build-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            native/agrapha-native/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('native/agrapha-native/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install PipeWire and X11 dev headers
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            libpipewire-0.3-dev \
+            libspa-0.2-dev \
+            libx11-dev \
+            libx11-xcb-dev \
+            xvfb \
+            ydotool
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Run desktop tests (includes Rust build via buildAgraphaNative)
+        run: xvfb-run ./gradlew :composeApp:desktopTest --no-daemon
