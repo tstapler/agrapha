@@ -1,6 +1,7 @@
 package com.meetingnotes.transcription
 
 import com.meetingnotes.domain.model.TranscriptSegment
+import com.meetingnotes.platform.PlatformInfo
 import io.github.givimad.whisperjni.WhisperContext
 import io.github.givimad.whisperjni.WhisperFullParams
 import io.github.givimad.whisperjni.WhisperJNI
@@ -312,6 +313,13 @@ class WhisperService : Closeable {
             if (libraryLoaded) return
             synchronized(loadLock) {
                 if (libraryLoaded) return
+                // On Linux, verify AVX2 support required by whisper-jni's CPU backend.
+                if (PlatformInfo.isLinux() && !PlatformInfo.avx2Supported()) {
+                    throw UnsatisfiedLinkError(
+                        "Whisper CPU backend requires AVX2 (Intel Haswell 2013+ or AMD Ryzen). " +
+                        "Check /proc/cpuinfo for 'avx2' flag."
+                    )
+                }
                 // Prefer CoreML dylib (built by native/WhisperCoreML/make, bundled as resource).
                 val coremlLoaded = runCatching {
                     val stream = WhisperService::class.java.getResourceAsStream("/libwhisperjni-coreml.dylib")

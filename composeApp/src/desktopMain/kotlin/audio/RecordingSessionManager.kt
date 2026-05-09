@@ -33,6 +33,7 @@ import java.util.UUID
 class RecordingSessionManager(
     private val repository: MeetingRepository,
     private val storage: FileStorageService,
+    private val systemAudioBackend: SystemAudioBackend = SystemAudioBackendFactory.create(),
 ) {
     /** A snapshot of one channel pair ready for live transcription. */
     data class LiveChunk(
@@ -95,23 +96,25 @@ class RecordingSessionManager(
 
             val sysJob = launch(Dispatchers.IO) {
                 val buf = FloatArray(1600)
-                // Start the ScreenCaptureKit audio stream. Failures here are non-fatal —
+                // Start the system audio backend. Failures here are non-fatal —
                 // the system channel will be silent rather than crashing the recording.
                 var captureStarted = false
-                try {
-                    captureStarted = ScreenCaptureJniBridge.nativeStartCapture(16_000)
-                } catch (_: Throwable) { /* JNI not loaded (tests) or permission denied */ }
+                if (systemAudioBackend.isAvailable()) {
+                    try {
+                        captureStarted = systemAudioBackend.startCapture(16_000)
+                    } catch (_: Throwable) { /* backend not available or permission denied */ }
+                }
 
                 try {
                     while (isActive) {
                         try {
-                            val n = ScreenCaptureJniBridge.nativeReadBuffer(buf)
+                            val n = systemAudioBackend.readBuffer(buf)
                             if (n > 0) synchronized(sysWriter) { sysWriter.writeSamples(buf.copyOf(n)) }
                         } catch (_: Exception) { /* native read failed — skip chunk */ }
                         delay(10L)  // outside inner try so CancellationException propagates
                     }
                 } finally {
-                    if (captureStarted) runCatching { ScreenCaptureJniBridge.nativeStopCapture() }
+                    if (captureStarted) runCatching { systemAudioBackend.stopCapture() }
                 }
             }
 

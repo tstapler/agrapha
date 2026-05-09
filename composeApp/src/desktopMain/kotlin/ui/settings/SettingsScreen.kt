@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.meetingnotes.data.FileStorageService
 import com.meetingnotes.domain.model.LlmProvider
+import com.meetingnotes.plugin.PluginLoader
+import com.meetingnotes.plugin.PluginLoadResult
 import com.meetingnotes.transcription.ModelDownloadManager
 import com.meetingnotes.transcription.ModelDownloadState
 import com.meetingnotes.transcription.WHISPER_MODELS
@@ -25,6 +27,9 @@ fun SettingsScreen(
     storage: FileStorageService,
     modelDownloadManager: ModelDownloadManager,
     onNavigate: (AppDestination) -> Unit,
+    pluginResults: List<PluginLoadResult> = emptyList(),
+    onPluginToggle: (pluginId: String, enabled: Boolean) -> Unit = { _, _ -> },
+    onPluginUnload: (pluginId: String) -> Unit = {},
 ) {
     val uiState by viewModel.state.collectAsState()
     val settings = uiState.settings
@@ -211,6 +216,22 @@ fun SettingsScreen(
         RetentionPicker(
             days = settings.recordingRetentionDays,
             onChange = { viewModel.onSettingsChange(settings.copy(recordingRetentionDays = it)) },
+        )
+
+        // ── Plugins ────────────────────────────────────────────────────────
+        SectionHeader("Plugins")
+
+        PluginsSettingsSection(
+            results = pluginResults,
+            enabledPlugins = settings.enabledPlugins,
+            pluginDirExists = PluginLoader.defaultPluginDir.exists(),
+            onToggle = { id, enabled ->
+                onPluginToggle(id, enabled)
+                viewModel.onSettingsChange(
+                    settings.copy(enabledPlugins = settings.enabledPlugins + (id to enabled))
+                )
+            },
+            onUnload = onPluginUnload,
         )
 
         // ── Save ───────────────────────────────────────────────────────────

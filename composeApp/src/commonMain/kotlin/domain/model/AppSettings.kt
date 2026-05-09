@@ -57,4 +57,10 @@ data class AppSettings(
     val diarizationMaxSpeakers: Int = 0,
     /** Enable LLM-backed transcript error correction via Ollama after transcription. */
     val correctionEnabled: Boolean = false,
+    /**
+     * Per-plugin enable/disable state, keyed by [com.meetingnotes.plugin.SpeechOutputPlugin.id].
+     * Missing keys default to enabled (all plugins start enabled on first load).
+     * Old settings files without this field deserialize to [emptyMap] via kotlinx.serialization defaults.
+     */
+    val enabledPlugins: Map<String, Boolean> = emptyMap(),
 )

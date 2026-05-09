@@ -1,4 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.gradle.internal.os.OperatingSystem
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -60,6 +61,47 @@ kotlin {
                 implementation(libs.sqldelight.sqlite.driver)
             }
         }
+    }
+}
+
+// ── PipeWire native bridge (Linux only) ───────────────────────────────────────
+val buildPipeWireCaptureBridge by tasks.registering(Exec::class) {
+    description = "Build libpipewire-jni.so from native/PipeWireCaptureBridge/ (Linux only)"
+    group = "build"
+
+    // Only enabled on Linux; no-op on macOS/Windows
+    enabled = OperatingSystem.current().isLinux
+
+    workingDir = rootProject.file("native/PipeWireCaptureBridge")
+    commandLine("make")
+
+    inputs.files(
+        rootProject.file("native/PipeWireCaptureBridge/jni/PipeWireCaptureBridgeJNI.c"),
+        rootProject.file("native/PipeWireCaptureBridge/jni/PipeWireCaptureBridgeJNI.h"),
+        rootProject.file("native/PipeWireCaptureBridge/Makefile"),
+    )
+    outputs.file(
+        project.file("src/desktopMain/resources/libpipewire-jni.so")
+    )
+}
+
+// Wire into the resource processing step so the .so is on the classpath before run/package.
+tasks.named("desktopProcessResources") {
+    if (OperatingSystem.current().isLinux) {
+        dependsOn(buildPipeWireCaptureBridge)
+    }
+}
+
+// Allow `./gradlew clean` to also remove the native artifact.
+val cleanPipeWireCaptureBridge by tasks.registering(Exec::class) {
+    enabled = OperatingSystem.current().isLinux
+    workingDir = rootProject.file("native/PipeWireCaptureBridge")
+    commandLine("make", "clean")
+}
+
+tasks.named("clean") {
+    if (OperatingSystem.current().isLinux) {
+        dependsOn(cleanPipeWireCaptureBridge)
     }
 }
 
