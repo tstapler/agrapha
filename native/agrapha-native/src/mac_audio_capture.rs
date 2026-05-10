@@ -22,7 +22,7 @@ use block2::RcBlock;
 use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
 use objc2::{define_class, msg_send, AnyThread, DeclaredClass};
-use objc2_foundation::{NSArray, NSError, NSObject};
+use objc2_foundation::{NSArray, NSError, NSObject, NSObjectProtocol};
 use objc2_screen_capture_kit::{
     SCContentFilter, SCDisplay, SCShareableContent, SCStream, SCStreamConfiguration,
     SCStreamDelegate, SCStreamOutput, SCStreamOutputType,
@@ -62,7 +62,7 @@ pub fn request_permission() -> bool {
     let result = Arc::new((Mutex::new(Option::<bool>::None), Condvar::new()));
     let result2 = result.clone();
 
-    let completion = RcBlock::new(move |_content: *mut c_void, err: *mut NSError| {
+    let completion = RcBlock::new(move |_content: *mut SCShareableContent, err: *mut NSError| {
         let granted = err.is_null();
         let (lock, cvar) = &*result2;
         *lock.lock().unwrap() = Some(granted);
@@ -144,7 +144,7 @@ pub fn start(sample_rate: u32) -> bool {
     let config = unsafe {
         let c = SCStreamConfiguration::new();
         c.setCapturesAudio(true);
-        c.setSampleRate(sample_rate as f64);
+        c.setSampleRate(sample_rate as isize);
         c.setChannelCount(1);
         c.setExcludesCurrentProcessAudio(false);
         c
@@ -300,6 +300,8 @@ define_class!(
         }
     }
 );
+
+unsafe impl NSObjectProtocol for AudioDelegate {}
 
 impl AudioDelegate {
     fn new(ring: Arc<Mutex<VecDeque<f32>>>) -> Retained<Self> {

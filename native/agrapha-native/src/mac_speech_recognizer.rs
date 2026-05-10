@@ -125,22 +125,20 @@ pub fn transcribe(path: &str) -> Result<String, String> {
     unsafe {
         // Build file URL from path
         let path_ns = NSString::from_str(path);
-        let url: Retained<AnyObject> =
-            msg_send![url_cls, fileURLWithPath: &*path_ns];
+        let url: *mut AnyObject = msg_send![url_cls, fileURLWithPath: &*path_ns];
 
         // Create recognition request for the file URL
-        let req_alloc: Retained<AnyObject> = msg_send![request_cls, alloc];
-        let req: Retained<AnyObject> =
-            msg_send![&*req_alloc, initWithURL: &*url];
-        let _: () = msg_send![&*req, setShouldReportPartialResults: false];
+        let req_alloc: *mut AnyObject = msg_send![request_cls, alloc];
+        let req: *mut AnyObject = msg_send![req_alloc, initWithURL: url];
+        let _: () = msg_send![req, setShouldReportPartialResults: false];
 
         // Create recognizer (uses system locale by default)
-        let recognizer: Retained<AnyObject> = msg_send![recognizer_cls, new];
+        let recognizer: *mut AnyObject = msg_send![recognizer_cls, new];
 
         // Start the task — handler fires on an internal dispatch queue
-        let _task: Retained<AnyObject> = msg_send![
-            &*recognizer,
-            recognitionTaskWithRequest: &*req
+        let _task: *mut AnyObject = msg_send![
+            recognizer,
+            recognitionTaskWithRequest: req
             resultHandler: &*handler
         ];
     }
