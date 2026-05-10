@@ -1,6 +1,6 @@
 //! macOS speech recognition via SFSpeechRecognizer (Speech.framework).
 //!
-//! Uses raw Obj-C messaging (msg_send! / msg_send_id!) rather than generated objc2-speech
+//! Uses raw Obj-C messaging (msg_send!) rather than generated objc2-speech
 //! bindings so no additional crate dependency is required. All class lookups are done at
 //! runtime: if the Speech framework is unavailable, `is_available()` returns false and
 //! JNI callers fall back gracefully.
@@ -17,7 +17,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use block2::RcBlock;
 use objc2::rc::Retained;
 use objc2::runtime::{AnyClass, AnyObject};
-use objc2::{msg_send, msg_send_id};
+use objc2::msg_send;
 use objc2_foundation::{NSError, NSString};
 
 // Link the Speech framework so ObjC classes are registered at dylib load time.
@@ -100,7 +100,7 @@ pub fn transcribe(path: &str) -> Result<String, String> {
 
             let outcome: Result<String, String> = if !error.is_null() {
                 let msg = unsafe {
-                    let desc: Retained<NSString> = msg_send_id![error, localizedDescription];
+                    let desc: Retained<NSString> = msg_send![error, localizedDescription];
                     desc.to_string()
                 };
                 Err(format!("SFSpeechRecognizer error: {msg}"))
@@ -126,21 +126,21 @@ pub fn transcribe(path: &str) -> Result<String, String> {
         // Build file URL from path
         let path_ns = NSString::from_str(path);
         let url: Retained<AnyObject> =
-            msg_send_id![url_cls, fileURLWithPath: &*path_ns];
+            msg_send![url_cls, fileURLWithPath: &*path_ns];
 
         // Create recognition request for the file URL
-        let req_alloc: Retained<AnyObject> = msg_send_id![request_cls, alloc];
+        let req_alloc: Retained<AnyObject> = msg_send![request_cls, alloc];
         let req: Retained<AnyObject> =
-            msg_send_id![&*req_alloc, initWithURL: url.as_ptr()];
+            msg_send![&*req_alloc, initWithURL: &*url];
         let _: () = msg_send![&*req, setShouldReportPartialResults: false];
 
         // Create recognizer (uses system locale by default)
-        let recognizer: Retained<AnyObject> = msg_send_id![recognizer_cls, new];
+        let recognizer: Retained<AnyObject> = msg_send![recognizer_cls, new];
 
         // Start the task — handler fires on an internal dispatch queue
-        let _task: Retained<AnyObject> = msg_send_id![
+        let _task: Retained<AnyObject> = msg_send![
             &*recognizer,
-            recognitionTaskWithRequest: req.as_ptr()
+            recognitionTaskWithRequest: &*req
             resultHandler: &*handler
         ];
     }
@@ -169,7 +169,7 @@ unsafe fn segments_to_json(result: *mut AnyObject) -> String {
     let segments: *mut AnyObject = msg_send![transcription, segments];
     if segments.is_null() {
         // Fallback: return the whole utterance as one synthetic segment
-        let formatted: Retained<NSString> = msg_send_id![transcription, formattedString];
+        let formatted: Retained<NSString> = msg_send![transcription, formattedString];
         let text = json_escape(formatted.to_string());
         return format!(r#"[{{"text":"{text}","start_ms":0,"end_ms":5000}}]"#);
     }
@@ -183,7 +183,7 @@ unsafe fn segments_to_json(result: *mut AnyObject) -> String {
             continue;
         }
 
-        let substring: Retained<NSString> = msg_send_id![seg, substring];
+        let substring: Retained<NSString> = msg_send![seg, substring];
         let timestamp: f64 = msg_send![seg, timestamp]; // seconds from start
         let duration: f64 = msg_send![seg, duration];   // seconds
 

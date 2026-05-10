@@ -21,14 +21,13 @@ use std::ffi::c_void;
 use block2::RcBlock;
 use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
-use objc2::{define_class, msg_send, AnyThread, ClassType, DeclaredClass};
-use objc2_foundation::{NSArray, NSError, NSObject, NSString};
+use objc2::{define_class, msg_send, AnyThread, DeclaredClass};
+use objc2_foundation::{NSArray, NSError, NSObject};
 use objc2_screen_capture_kit::{
-    SCContentFilter, SCShareableContent, SCStream, SCStreamConfiguration,
+    SCContentFilter, SCDisplay, SCShareableContent, SCStream, SCStreamConfiguration,
     SCStreamDelegate, SCStreamOutput, SCStreamOutputType,
 };
 use objc2_core_media::CMSampleBuffer;
-use dispatch2::{DispatchQueue, DispatchQoS};
 
 // ── CoreGraphics C API ────────────────────────────────────────────────────────
 
@@ -45,6 +44,8 @@ struct CaptureState {
     _stream: Retained<SCStream>,
     _delegate: Retained<AudioDelegate>,
 }
+
+unsafe impl Send for CaptureState {}
 
 static CAPTURE: Mutex<Option<CaptureState>> = Mutex::new(None);
 
@@ -69,7 +70,7 @@ pub fn request_permission() -> bool {
     });
 
     unsafe {
-        SCShareableContent::getExcludingDesktopWindows_onScreenWindowsOnly_completionHandler(
+        SCShareableContent::getShareableContentExcludingDesktopWindows_onScreenWindowsOnly_completionHandler(
             false,
             false,
             &completion,
@@ -91,7 +92,7 @@ pub fn start(sample_rate: u32) -> bool {
     }
 
     // ── Enumerate displays (blocking) ─────────────────────────────────────────
-    let displays_result = Arc::new((Mutex::new(Option::<Vec<Retained<objc2::runtime::AnyObject>>>::None), Condvar::new()));
+    let displays_result = Arc::new((Mutex::new(Option::<Vec<Retained<SCDisplay>>>::None), Condvar::new()));
     let displays_result2 = displays_result.clone();
 
     let enum_completion = RcBlock::new(move |content: *mut SCShareableContent, err: *mut NSError| {
@@ -102,9 +103,8 @@ pub fn start(sample_rate: u32) -> bool {
                 // Collect Retained references to each display
                 let mut v = Vec::new();
                 for i in 0..displays.count() {
-                    if let Some(d) = displays.objectAtIndex(i) {
-                        v.push(Retained::retain(d.as_ptr().cast()).unwrap());
-                    }
+                    let d = displays.objectAtIndex(i);
+                    v.push(d);
                 }
                 Some(v)
             }
@@ -118,7 +118,7 @@ pub fn start(sample_rate: u32) -> bool {
     });
 
     unsafe {
-        SCShareableContent::getExcludingDesktopWindows_onScreenWindowsOnly_completionHandler(
+        SCShareableContent::getShareableContentExcludingDesktopWindows_onScreenWindowsOnly_completionHandler(
             false,
             false,
             &enum_completion,
@@ -154,7 +154,7 @@ pub fn start(sample_rate: u32) -> bool {
     let filter = unsafe {
         SCContentFilter::initWithDisplay_excludingApplications_exceptingWindows(
             SCContentFilter::alloc(),
-            &*display.cast::<objc2_screen_capture_kit::SCDisplay>(),
+            &*display,
             &NSArray::new(),
             &NSArray::new(),
         )
@@ -177,15 +177,11 @@ pub fn start(sample_rate: u32) -> bool {
     };
 
     // ── Register audio output ─────────────────────────────────────────────────
-    let queue = unsafe {
-        DispatchQueue::global(DispatchQoS::UserInitiated)
-    };
-
     let add_result = unsafe {
         stream.addStreamOutput_type_sampleHandlerQueue_error(
             ProtocolObject::from_ref(&*delegate),
             SCStreamOutputType::Audio,
-            Some(&queue),
+            None,
         )
     };
 
@@ -276,6 +272,7 @@ struct AudioDelegateIvars {
 
 define_class!(
     #[unsafe(super(NSObject))]
+    #[thread_kind = AnyThread]
     #[name = "AgraphaAudioDelegate"]
     #[ivars = AudioDelegateIvars]
     struct AudioDelegate;
@@ -320,27 +317,22 @@ fn push_samples_from_buffer(
     sample_buffer: &CMSampleBuffer,
     ring: &Mutex<VecDeque<f32>>,
 ) {
-    // objc2-core-media exposes CMSampleBuffer::dataBuffer() → Option<Retained<CMBlockBuffer>>
-    // and CMBlockBuffer::data() → &[u8] for contiguous buffers.
-    let Some(block_buf) = (unsafe { sample_buffer.dataBuffer() }) else {
-        return;
+    // Use C FFI to get the block buffer from the sample buffer.
+    let block_buf = unsafe {
+        CMSampleBufferGetDataBuffer(sample_buffer as *const CMSampleBuffer as *const c_void)
     };
-
-    // Try contiguous data access first
-    let data_len = unsafe { block_buf.dataLength() };
-    if data_len == 0 {
+    if block_buf.is_null() {
         return;
     }
 
-    // CMBlockBuffer::data() only works for contiguous buffers.
-    // For non-contiguous buffers we call CMBlockBufferGetDataPointer via C FFI.
+    // CMBlockBufferGetDataPointer via C FFI gives us a pointer to the raw bytes.
     let mut data_ptr: *mut i8 = std::ptr::null_mut();
     let mut len_at_offset: usize = 0;
     let mut total_len: usize = 0;
 
     let status = unsafe {
         CMBlockBufferGetDataPointer(
-            block_buf.as_ptr() as *mut c_void,
+            block_buf,
             0,
             &mut len_at_offset,
             &mut total_len,
@@ -367,9 +359,10 @@ fn push_samples_from_buffer(
     }
 }
 
-// CoreMedia C function for block buffer data access (not yet in objc2-core-media)
+// CoreMedia C functions for sample/block buffer data access (not yet in objc2-core-media)
 #[link(name = "CoreMedia", kind = "framework")]
 unsafe extern "C" {
+    fn CMSampleBufferGetDataBuffer(sbuf: *const c_void) -> *mut c_void;
     fn CMBlockBufferGetDataPointer(
         the_buffer: *mut c_void,
         offset: usize,
