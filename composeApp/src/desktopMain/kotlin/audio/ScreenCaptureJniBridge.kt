@@ -35,8 +35,15 @@ object ScreenCaptureJniBridge {
             // Fall through to classpath-resource extraction.
         }
 
+        val os = System.getProperty("os.name").lowercase()
+        val libName = when {
+            os.contains("mac") -> "libagrapha_native.dylib"
+            os.contains("linux") -> "libagrapha_native.so"
+            else -> throw UnsatisfiedLinkError("Unsupported OS for agrapha_native: $os")
+        }
+
         val tmpDir = Files.createTempDirectory("agrapha-jni").toFile()
-        val lib = extractResource("libagrapha_native.dylib", tmpDir)
+        val lib = extractResource(libName, tmpDir)
         System.load(lib.absolutePath)
         loaded = true
     }
