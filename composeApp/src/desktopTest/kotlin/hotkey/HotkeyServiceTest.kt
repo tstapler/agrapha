@@ -97,7 +97,7 @@ class HotkeyServiceTest {
             svc.listen {}
         }
         delay(250) // real time — let several iterations complete
-        job.cancel()
+        job.cancelAndJoin() // wait for IO thread to finish current waitOnce() before reading waitCalls
 
         assertTrue(bridge.waitCalls.isNotEmpty())
         bridge.waitCalls.forEach { (_, _, timeoutMs) ->
