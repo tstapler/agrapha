@@ -5,6 +5,7 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.contentLength
 import io.ktor.utils.io.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -18,7 +19,16 @@ data class WhisperModelSpec(
     val filename: String,
     val displayName: String,
     val description: String,
-    val sha256: String,
+    /**
+     * SHA-256 hex digest used to verify the downloaded file.
+     * null = no verification — use only for models where the hash is not published.
+     */
+    val sha256: String?,
+    /**
+     * Expected file size in bytes; used to detect incomplete downloads and to display progress.
+     * 0 = unknown — the downloader will fall back to HTTP Content-Length for progress display
+     * and will skip the size-based fast-path for "already downloaded" detection.
+     */
     val sizeBytes: Long,
     val recommended: Boolean = false,
     /**
@@ -89,6 +99,14 @@ val WHISPER_MODELS = listOf(
         sizeBytes = 3_095_033_483L,
         // No pre-compiled CoreML encoder available for large-v3
     ),
+    WhisperModelSpec(
+        filename = "ggml-distil-large-v3.5.bin",
+        displayName = "distil-large-v3.5",
+        description = "~1.5 GB · Successor to distil-large-v3 · Further reduced hallucinations · 6x faster than large-v3",
+        sha256 = null,  // not published by distil-whisper — file is downloaded without integrity verification
+        sizeBytes = 0L, // unknown — HTTP Content-Length will be used for progress display
+        downloadUrl = "https://huggingface.co/distil-whisper/distil-large-v3.5-ggml/resolve/main/ggml-distil-large-v3.5.bin",
+    ),
 )
 
 private const val HF_BASE = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
@@ -108,7 +126,9 @@ class WhisperModelDownloader(private val client: HttpClient = HttpClient(CIO) {
 
     fun isAlreadyDownloaded(spec: WhisperModelSpec, destDir: File): Boolean {
         val file = File(destDir, spec.filename)
-        return file.exists() && file.length() == spec.sizeBytes
+        if (!file.exists()) return false
+        // When sizeBytes is unknown (0), accept any existing file without size check.
+        return spec.sizeBytes == 0L || file.length() == spec.sizeBytes
     }
 
     fun download(spec: WhisperModelSpec, destDir: File): Flow<ModelDownloadState> = flow {
@@ -117,19 +137,27 @@ class WhisperModelDownloader(private val client: HttpClient = HttpClient(CIO) {
         val destFile = File(destDir, spec.filename)
 
         // Already fully downloaded — re-verify SHA and short-circuit.
-        if (destFile.exists() && destFile.length() == spec.sizeBytes) {
-            emit(ModelDownloadState.Verifying)
-            if (sha256(destFile) == spec.sha256) {
+        val sizeMatches = spec.sizeBytes == 0L || destFile.length() == spec.sizeBytes
+        if (destFile.exists() && sizeMatches) {
+            if (spec.sha256 != null) {
+                emit(ModelDownloadState.Verifying)
+                if (sha256(destFile) == spec.sha256) {
+                    downloadCoreMLEncoderIfNeeded(spec, destDir)
+                    emit(ModelDownloadState.Done(destFile.absolutePath))
+                    return@flow
+                }
+                destFile.delete()  // corrupt — fall through to re-download
+            } else {
+                // No hash available — trust the existing file.
                 downloadCoreMLEncoderIfNeeded(spec, destDir)
                 emit(ModelDownloadState.Done(destFile.absolutePath))
                 return@flow
             }
-            destFile.delete()  // corrupt — fall through to re-download
         }
 
         destDir.mkdirs()
 
-        val digest = MessageDigest.getInstance("SHA-256")
+        val digest = if (spec.sha256 != null) MessageDigest.getInstance("SHA-256") else null
         var bytesReceived = 0L
         var lastEmitted = 0L
 
@@ -138,6 +166,9 @@ class WhisperModelDownloader(private val client: HttpClient = HttpClient(CIO) {
         // for files > Int.MAX_VALUE bytes (2.15 GB), Buffer.readByteArray() throws:
         //   "Can't create an array of size 3095033483"
         client.prepareGet(spec.downloadUrl ?: "$HF_BASE/${spec.filename}").execute { response ->
+            // Use HTTP Content-Length when the model size is not hardcoded.
+            val reportedTotal = if (spec.sizeBytes > 0L) spec.sizeBytes
+                else response.contentLength() ?: 0L
             val channel: ByteReadChannel = response.bodyAsChannel()
             destFile.outputStream().use { out ->
                 val buf = ByteArray(64 * 1024)  // 64 KB read buffer
@@ -145,26 +176,32 @@ class WhisperModelDownloader(private val client: HttpClient = HttpClient(CIO) {
                     val read = channel.readAvailable(buf)
                     if (read <= 0) continue
                     out.write(buf, 0, read)
-                    digest.update(buf, 0, read)
+                    digest?.update(buf, 0, read)
                     bytesReceived += read
                     if (bytesReceived - lastEmitted >= EMIT_THRESHOLD) {
-                        emit(ModelDownloadState.Downloading(bytesReceived, spec.sizeBytes))
+                        emit(ModelDownloadState.Downloading(bytesReceived, reportedTotal))
                         lastEmitted = bytesReceived
                     }
                 }
             }
         }
 
-        emit(ModelDownloadState.Verifying)
-        val actual = digest.digest().joinToString("") { "%02x".format(it) }
-        if (actual != spec.sha256) {
-            destFile.delete()
-            emit(ModelDownloadState.Error(
-                "SHA-256 mismatch — file may be corrupt.\n" +
-                "Expected: ${spec.sha256.take(16)}…\n" +
-                "Got:      ${actual.take(16)}…"
-            ))
+        if (spec.sha256 != null) {
+            emit(ModelDownloadState.Verifying)
+            val actual = digest!!.digest().joinToString("") { "%02x".format(it) }
+            if (actual != spec.sha256) {
+                destFile.delete()
+                emit(ModelDownloadState.Error(
+                    "SHA-256 mismatch — file may be corrupt.\n" +
+                    "Expected: ${spec.sha256.take(16)}…\n" +
+                    "Got:      ${actual.take(16)}…"
+                ))
+            } else {
+                downloadCoreMLEncoderIfNeeded(spec, destDir)
+                emit(ModelDownloadState.Done(destFile.absolutePath))
+            }
         } else {
+            // No hash to verify — emit Done immediately after download.
             downloadCoreMLEncoderIfNeeded(spec, destDir)
             emit(ModelDownloadState.Done(destFile.absolutePath))
         }

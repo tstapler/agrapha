@@ -14,6 +14,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
@@ -131,6 +132,125 @@ class SettingsViewModelTest {
         val state = vm1State(vm)
         assertFalse("llmApiKey" in state.validationErrors, "Ollama should not require API key")
     }
+
+    // ── Path Expansion (via validate) ────────────────────────────────────────
+
+    @Test
+    fun `expandPath expands tilde to user home directory`() = runTest(UnconfinedTestDispatcher()) {
+        val homeDir = System.getProperty("user.home")
+        val wikiDir = tempFolder.newFolder("wiki_tilde")
+        val tildeSubPath = "~/.agrapha_test_wiki"
+
+        // Create the expanded directory to satisfy validation
+        val expandedPath = File(homeDir, ".agrapha_test_wiki")
+        expandedPath.mkdirs()
+        try {
+            val vm = SettingsViewModel(settingsRepo, this)
+            vm.state.first { !it.loading }
+
+            val settings = AppSettings(logseqWikiPath = tildeSubPath)
+            vm.onSettingsChange(settings)
+            vm.save()
+
+            val state = vm1State(vm)
+            assertFalse("logseqWikiPath" in state.validationErrors, "Tilde should be expanded to valid home path")
+            assertTrue(state.saveSuccess, "Save should succeed when tilde expands to existing directory")
+        } finally {
+            expandedPath.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `expandPath expands dollar-brace environment variables`() = runTest(UnconfinedTestDispatcher()) {
+        val testDir = tempFolder.newFolder("wiki_env")
+        val envVarPath = "\${TEST_WIKI_EXPAND_PATH}"
+
+        try {
+            // Set environment variable for this test
+            val envVarName = "TEST_WIKI_EXPAND_PATH"
+            val originalEnv = System.getenv(envVarName)
+            // Note: System.getenv() is read-only on most platforms, so we test with an existing var
+            // For this test, we'll use the existing user.home property which is always available
+            val homeDir = System.getProperty("user.home")
+            val testSubDir = ".agrapha_test_brace_expand"
+            val expandedDir = File(homeDir, testSubDir)
+            expandedDir.mkdirs()
+
+            try {
+                val vm = SettingsViewModel(settingsRepo, this)
+                vm.state.first { !it.loading }
+
+                // Use HOME which is typically set as an env var
+                val settings = AppSettings(logseqWikiPath = "\${HOME}/$testSubDir")
+                vm.onSettingsChange(settings)
+                vm.save()
+
+                val state = vm1State(vm)
+                assertFalse("logseqWikiPath" in state.validationErrors, "\${VAR} should expand environment variables")
+                assertTrue(state.saveSuccess, "Save should succeed when \${VAR} expands to existing directory")
+            } finally {
+                expandedDir.deleteRecursively()
+            }
+        } finally {
+            // Env vars cannot be unset, so we just proceed
+        }
+    }
+
+    @Test
+    fun `expandPath expands dollar environment variables without braces`() = runTest(UnconfinedTestDispatcher()) {
+        val homeDir = System.getProperty("user.home")
+        val testSubDir = ".agrapha_test_dollar_expand"
+        val expandedDir = File(homeDir, testSubDir)
+        expandedDir.mkdirs()
+
+        try {
+            val vm = SettingsViewModel(settingsRepo, this)
+            vm.state.first { !it.loading }
+
+            // Use HOME env var syntax: $VAR
+            val settings = AppSettings(logseqWikiPath = "\$HOME/$testSubDir")
+            vm.onSettingsChange(settings)
+            vm.save()
+
+            val state = vm1State(vm)
+            assertFalse("logseqWikiPath" in state.validationErrors, "\$VAR should expand environment variables")
+            assertTrue(state.saveSuccess, "Save should succeed when \$VAR expands to existing directory")
+        } finally {
+            expandedDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `expandPath leaves plain absolute paths unchanged`() = runTest(UnconfinedTestDispatcher()) {
+        val plainPath = tempFolder.newFolder("wiki_plain").absolutePath
+
+        val vm = SettingsViewModel(settingsRepo, this)
+        vm.state.first { !it.loading }
+
+        val settings = AppSettings(logseqWikiPath = plainPath)
+        vm.onSettingsChange(settings)
+        vm.save()
+
+        val state = vm1State(vm)
+        assertFalse("logseqWikiPath" in state.validationErrors, "Plain absolute paths should work unchanged")
+        assertTrue(state.saveSuccess, "Save should succeed for plain absolute paths")
+    }
+
+    @Test
+    fun `expandPath leaves unresolved environment variables as-is (validation still fails if path doesn't exist)`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val vm = SettingsViewModel(settingsRepo, this)
+            vm.state.first { !it.loading }
+
+            // Use a nonexistent env var — after expansion, the literal string remains
+            val settings = AppSettings(logseqWikiPath = "\$NONEXISTENT_VAR_THAT_WILL_NOT_EXIST/some/path")
+            vm.onSettingsChange(settings)
+            vm.save()
+
+            val state = vm1State(vm)
+            assertTrue("logseqWikiPath" in state.validationErrors, "Unresolved env vars should still fail validation")
+            assertFalse(state.saveSuccess, "Save should fail when expanded path doesn't exist")
+        }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

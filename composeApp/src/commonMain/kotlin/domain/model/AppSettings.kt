@@ -63,4 +63,18 @@ data class AppSettings(
      * Old settings files without this field deserialize to [emptyMap] via kotlinx.serialization defaults.
      */
     val enabledPlugins: Map<String, Boolean> = emptyMap(),
+    /**
+     * Which transcription backend to use for dictation (DictationPlugin).
+     * Valid values: "whisper" (default, cross-platform GGML), "apple-speech" (macOS only),
+     * or "parakeet" (ONNX Runtime, requires separate model download — see [parakeetModelDir]).
+     * The recording pipeline always uses Whisper regardless of this setting.
+     */
+    val transcriptionBackend: String = "whisper",
+    /**
+     * Directory containing the Parakeet-TDT ONNX model files:
+     *   encoder.onnx + tokens.txt (required)
+     *   decoder.onnx + joiner.onnx (optional, for RNNT-style exports)
+     * Download from huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx
+     */
+    val parakeetModelDir: String = "",
 )

@@ -49,6 +49,7 @@ kotlin {
                 implementation(libs.sqldelight.sqlite.driver)
                 implementation(libs.ktor.client.cio)
                 implementation(libs.whisper.jni)
+                implementation("com.microsoft.onnxruntime:onnxruntime:1.20.0")
             }
         }
 

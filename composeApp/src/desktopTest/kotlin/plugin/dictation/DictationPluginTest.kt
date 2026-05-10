@@ -41,9 +41,9 @@ class DictationPluginTest {
     // ── UNIT-5-1-04 ──────────────────────────────────────────────────────────
     @Test
     fun `FILE_TRANSCRIPTION activate with missing inputPath returns failure without throw`() {
-        val plugin = DictationPlugin(whisperService = null)
+        val plugin = DictationPlugin(transcriptionBackend = null)
         val result = runBlocking { plugin.activate(DictationMode.FILE_TRANSCRIPTION, emptyMap()) }
-        assertTrue(result.isFailure, "activate must return failure when WhisperService is null or inputPath missing")
+        assertTrue(result.isFailure, "activate must return failure when transcription backend is null or inputPath missing")
     }
 
     // ── UNIT-5-1-05 ──────────────────────────────────────────────────────────

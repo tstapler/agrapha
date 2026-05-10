@@ -8,7 +8,7 @@ import com.meetingnotes.hotkey.HotkeyService
 import com.meetingnotes.plugin.DictationMode
 import com.meetingnotes.plugin.PluginException
 import com.meetingnotes.plugin.SpeechOutputPlugin
-import com.meetingnotes.transcription.WhisperService
+import com.meetingnotes.transcription.TranscriptionBackend
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.File
@@ -18,16 +18,17 @@ import java.io.File
  *
  * - [DictationMode.PUSH_TO_TALK]: mic recording triggered by UI button/shortcut (in-window focus);
  *   global hotkey is a Wayland limitation — see Settings for details.
- * - [DictationMode.FILE_TRANSCRIPTION]: offline file-to-text via Whisper.
+ * - [DictationMode.FILE_TRANSCRIPTION]: offline file-to-text via the configured backend.
  * - [DictationMode.LIVE_CAPTIONS]: always-on mic with streaming overlay.
  *
  * Registered via META-INF/services/com.meetingnotes.plugin.SpeechOutputPlugin.
  *
- * @param whisperService shared Whisper inference engine (model must be loaded by caller).
+ * @param transcriptionBackend transcription engine; defaults to null (dictation returns an error
+ *   until a backend is configured via [TranscriptionBackendFactory]).
  * @param textInjector text injection backend; defaults to [AutoDetectTextInjector].
  */
 class DictationPlugin(
-    internal val whisperService: WhisperService? = null,
+    internal val transcriptionBackend: TranscriptionBackend? = null,
     internal val textInjector: TextInjector = AutoDetectTextInjector(),
     internal val hotkeyService: HotkeyService = HotkeyService(),
 ) : SpeechOutputPlugin {
@@ -112,9 +113,9 @@ class DictationPlugin(
         maxSeconds: Int = 10,
         meetingId: String = "dictation-${System.currentTimeMillis()}",
     ): Result<String> = withContext(Dispatchers.IO) {
-        val ws = whisperService
+        val ws = transcriptionBackend
             ?: return@withContext Result.failure(
-                PluginException("WhisperService not configured in DictationPlugin")
+                PluginException("No transcription backend configured in DictationPlugin")
             )
 
         val micService = MicCaptureService()
@@ -163,9 +164,9 @@ class DictationPlugin(
 
     private suspend fun activateFileTranscription(config: Map<String, String>): Result<Unit> =
         withContext(Dispatchers.IO) {
-            val ws = whisperService
+            val ws = transcriptionBackend
                 ?: return@withContext Result.failure(
-                    PluginException("WhisperService not configured in DictationPlugin")
+                    PluginException("No transcription backend configured in DictationPlugin")
                 )
 
             val inputPath = config["inputPath"]
@@ -206,8 +207,8 @@ class DictationPlugin(
     // ── LIVE_CAPTIONS ─────────────────────────────────────────────────────────
 
     private fun activateLiveCaptions(config: Map<String, String>): Result<Unit> {
-        val ws = whisperService
-            ?: return Result.failure(PluginException("WhisperService not configured in DictationPlugin"))
+        val ws = transcriptionBackend
+            ?: return Result.failure(PluginException("No transcription backend configured in DictationPlugin"))
 
         val maxSegments = config["maxSegments"]?.toIntOrNull() ?: 5
         val chunkMs = 3000L  // collect 3 seconds of audio per chunk

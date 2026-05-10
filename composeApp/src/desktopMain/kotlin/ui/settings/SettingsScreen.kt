@@ -16,6 +16,7 @@ import com.meetingnotes.plugin.PluginLoader
 import com.meetingnotes.plugin.PluginLoadResult
 import com.meetingnotes.transcription.ModelDownloadManager
 import com.meetingnotes.transcription.ModelDownloadState
+import com.meetingnotes.transcription.TranscriptionBackendFactory
 import com.meetingnotes.transcription.WHISPER_MODELS
 import com.meetingnotes.transcription.WhisperModelSpec
 import com.meetingnotes.ui.AppDestination
@@ -56,8 +57,48 @@ fun SettingsScreen(
             Text("Settings", style = MaterialTheme.typography.headlineMedium)
         }
 
+        // ── Transcription Backend ──────────────────────────────────────────
+        SectionHeader("Transcription Engine")
+
+        val availableBackends = remember { TranscriptionBackendFactory.availableDescriptions() }
+        if (availableBackends.size > 1) {
+            LabeledDropdown(
+                label = "Dictation engine",
+                options = availableBackends.map { it.first },
+                selected = if (availableBackends.any { it.first == settings.transcriptionBackend })
+                    settings.transcriptionBackend else availableBackends.first().first,
+                optionLabel = { id -> availableBackends.find { it.first == id }?.second ?: id },
+                onSelect = { viewModel.onSettingsChange(settings.copy(transcriptionBackend = it)) },
+            )
+            Text(
+                "Apple Speech uses the macOS on-device model (no download, uses Neural Engine). " +
+                "The recording pipeline always uses Whisper regardless of this setting.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        if (settings.transcriptionBackend == "parakeet") {
+            OutlinedTextField(
+                value = settings.parakeetModelDir,
+                onValueChange = { viewModel.onSettingsChange(settings.copy(parakeetModelDir = it)) },
+                label = { Text("Parakeet model directory") },
+                placeholder = { Text("~/models/parakeet-tdt-0.6b-v3-onnx") },
+                isError = "parakeetModelDir" in errors,
+                supportingText = { errors["parakeetModelDir"]?.let { Text(it) } },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            Text(
+                "Directory containing encoder.onnx and tokens.txt. " +
+                "Download from huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         // ── Whisper Model ──────────────────────────────────────────────────
-        SectionHeader("Transcription (Whisper)")
+        SectionHeader("Whisper Model")
 
         ModelPickerSection(
             modelsDir = modelsDir,

@@ -5,6 +5,8 @@ mod pipewire_capture;
 
 #[cfg(target_os = "macos")]
 mod mac_audio_capture;
+#[cfg(target_os = "macos")]
+mod mac_speech_recognizer;
 
 use jni::objects::{JClass, JFloatArray};
 use jni::sys::{jboolean, jint, jlong, jstring, JNI_FALSE, JNI_TRUE};
@@ -194,5 +196,52 @@ pub extern "system" fn Java_com_meetingnotes_audio_ScreenCaptureJniBridge_native
     match env.set_float_array_region(&buffer, 0, &samples) {
         Ok(()) => samples.len() as jint,
         Err(_) => 0,
+    }
+}
+
+// ── Apple Speech JNI exports (macOS) ─────────────────────────────────────────
+// Class: com.meetingnotes.transcription.AppleSpeechJniBridge
+
+#[cfg(target_os = "macos")]
+#[no_mangle]
+pub extern "system" fn Java_com_meetingnotes_transcription_AppleSpeechJniBridge_nativeIsAvailable<
+    'local,
+>(
+    _env: JNIEnv<'local>,
+    _class: JClass<'local>,
+) -> jboolean {
+    if mac_speech_recognizer::is_available() { JNI_TRUE } else { JNI_FALSE }
+}
+
+#[cfg(target_os = "macos")]
+#[no_mangle]
+pub extern "system" fn Java_com_meetingnotes_transcription_AppleSpeechJniBridge_nativeRequestAuthorization<
+    'local,
+>(
+    _env: JNIEnv<'local>,
+    _class: JClass<'local>,
+) -> jboolean {
+    if mac_speech_recognizer::request_authorization() { JNI_TRUE } else { JNI_FALSE }
+}
+
+#[cfg(target_os = "macos")]
+#[no_mangle]
+pub extern "system" fn Java_com_meetingnotes_transcription_AppleSpeechJniBridge_nativeTranscribe<
+    'local,
+>(
+    mut env: JNIEnv<'local>,
+    _class: JClass<'local>,
+    audio_path: jni::objects::JString<'local>,
+) -> jstring {
+    let path: String = match env.get_string(&audio_path) {
+        Ok(s) => s.into(),
+        Err(_) => return std::ptr::null_mut(),
+    };
+    match mac_speech_recognizer::transcribe(&path) {
+        Ok(json) => env.new_string(json).map(|s| s.into_raw()).unwrap_or(std::ptr::null_mut()),
+        Err(msg) => {
+            let _ = env.throw_new("java/lang/RuntimeException", &msg);
+            std::ptr::null_mut()
+        }
     }
 }
