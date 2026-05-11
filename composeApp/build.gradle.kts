@@ -122,6 +122,59 @@ tasks.named("clean") {
     if (isLinux || isMacOs) dependsOn(cleanAgraphaNative)
 }
 
+// ── FluidAudio Swift bridge (macOS only via Swift Package Manager) ─────────────
+//
+// Prerequisites (macOS only):
+//   - Swift toolchain (Xcode or swift.org toolchain)
+//   - JAVA_HOME pointing to a JDK with include/jni.h
+//
+// Local development: built with ad-hoc codesign (`codesign -s -`).
+// Distribution: sign with a Developer ID certificate via notarytool before release.
+val fluidBridgeDir = project.file("native/FluidDiarizationBridge")
+val fluidBridgeDylib = project.file("native/FluidDiarizationBridge/.build/release/libFluidDiarizationBridge.dylib")
+val fluidBridgeResource = project.file("src/desktopMain/resources/libFluidDiarizationBridge.dylib")
+
+val buildFluidDiarizationBridge by tasks.registering(Exec::class) {
+    description = "Build libFluidDiarizationBridge.dylib via Swift Package Manager (macOS only)"
+    group = "build"
+    enabled = isMacOs
+
+    val javaHome = System.getenv("JAVA_HOME")
+        ?: "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home"
+
+    workingDir = fluidBridgeDir
+    commandLine(
+        "swift", "build", "-c", "release",
+        "-Xcc", "-I$javaHome/include",
+        "-Xcc", "-I$javaHome/include/darwin",
+    )
+
+    inputs.dir(project.file("native/FluidDiarizationBridge/Sources"))
+    inputs.file(project.file("native/FluidDiarizationBridge/Package.swift"))
+    outputs.file(fluidBridgeDylib)
+
+    doLast {
+        fluidBridgeResource.parentFile.mkdirs()
+        fluidBridgeDylib.copyTo(fluidBridgeResource, overwrite = true)
+        // Ad-hoc sign for local development — replace with Developer ID cert for release.
+        exec { commandLine("codesign", "-f", "-s", "-", fluidBridgeResource.absolutePath) }
+    }
+}
+
+val cleanFluidDiarizationBridge by tasks.registering(Delete::class) {
+    enabled = isMacOs
+    delete(fluidBridgeResource)
+    delete(project.file("native/FluidDiarizationBridge/.build"))
+}
+
+tasks.named("desktopProcessResources") {
+    if (isMacOs) dependsOn(buildFluidDiarizationBridge)
+}
+
+tasks.named("clean") {
+    if (isMacOs) dependsOn(cleanFluidDiarizationBridge)
+}
+
 sqldelight {
     databases {
         create("MeetingDatabase") {
