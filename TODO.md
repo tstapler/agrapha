@@ -1,72 +1,94 @@
 # Agrapha — Project Status
 
-**Last updated:** 2026-05-09
-**Active branch:** `feature/linux-dictation-plugin` (PR #1 open against `main`)
+**Last updated:** 2026-05-11
+**Active branch:** `main`
 
 ---
 
 ## Summary
 
-PR #1 delivers Linux parity for Agrapha via PipeWire audio capture, a ServiceLoader-based plugin SPI,
-a built-in DictationPlugin with all three modes, and a Rust JNI crate replacing all platform-specific
-native bridges on both Linux and macOS.
+PR #1 was merged. All Linux parity work is complete. Three follow-on feature tracks are
+substantially implemented but not fully wired: FluidAudio diarization (Stories 1–10, bridge
+stubs pending real FluidAudio SPM URL), transcription/diarization improvements (all Kotlin
+work done, WER harness pending), and Agrapha extraction (repo is live, CI/release pipeline
+in place, working tree changes uncommitted).
 
-**All 194 tests pass.** The implementation substantially outpaces the original 5-epic plan.
-
----
-
-## PR #1 Merge Checklist
-
-All items resolved — PR #1 is ready to merge.
-
-Items that are complete and verified:
-
-Items that are complete and verified:
-
-- [x] Story 1.1 — PlatformInfo utility (`PlatformInfo.kt` + tests)
-- [x] Story 2.1 — SystemAudioBackend interface + NoOpSystemAudioBackend
-- [x] Story 2.2 — ScreenCaptureBackend (macOS adapter)
-- [x] Story 2.3 — RecordingSessionManager refactored to constructor-inject SystemAudioBackend
-- [x] Story 2.4 — PipeWire capture — Rust crate (`native/agrapha-native/src/pipewire_capture.rs`)
-- [x] Story 2.5 — PipeWireCaptureBackend (Kotlin wrapper + JNI bridge)
-- [x] Story 2.6 — SystemAudioBackendFactory (platform dispatch)
-- [x] Story 2.7 — Gradle build task (`buildAgraphaNative` Exec task, wired to desktopProcessResources)
-- [x] Story 3.1 — DictationMode enum (commonMain, @Serializable)
-- [x] Story 3.2 — SpeechOutputPlugin interface + PluginException (commonMain)
-- [x] Story 3.3 — PluginLoader (ServiceLoader + child-first URLClassLoader + unload())
-- [x] Story 3.4 — AppSettings.enabledPlugins field added with default emptyMap()
-- [x] Story 3.5 — PluginsSettingsSection composable (success + failure rows + toggle)
-- [x] Story 4.1 — TextInjector interface + TextInjectorUnavailableException
-- [x] Story 4.2 — YdotoolTextInjector (daemon check, shell-injection-safe ProcessBuilder)
-- [x] Story 4.3 — XdotoolTextInjector (Wayland guard, X11 fallback)
-- [x] Story 4.4 — AutoDetectTextInjector (ydotool-first, xdotool fallback, cached selection)
-- [x] Story 5.1 — DictationPlugin shell (correct id/name/version/supportedModes)
-- [x] Story 5.2 — PUSH_TO_TALK mode (global hotkey via HotkeyService, triggerDictation())
-- [x] Story 5.3 — FILE_TRANSCRIPTION mode (file path config, WhisperService transcription)
-- [x] Story 5.4 — LIVE_CAPTIONS mode (MicCaptureService + 3s chunk Whisper + liveSegments StateFlow)
-- [x] Story 5.5 — ServiceLoader registration (META-INF/services file + ServiceLoaderRegistrationTest)
-- [x] macOS Swift+ObjC JNI bridge replaced with pure Rust (mac_audio_capture.rs)
-- [x] HotkeyService with injectable HotkeyBridge (X11 XGrabKey + Wayland portal)
-- [x] GlobalShortcutJniBridge (Kotlin) + global_shortcut.rs (Rust) — both backends
-- [x] Story 1.3 — Linux CI job (`build-linux` on ubuntu-latest, PipeWire apt deps, xvfb-run)
-- [x] macOS CI fix: Rust toolchain + Cargo cache added; stale AudioCaptureBridge step removed
-- [x] LIVE_CAPTIONS floating overlay — `LiveCaptionsOverlay.kt` + wired into AppRoot/Main
-- [x] AVX2 guard — already present in WhisperService.loadLibraryOnce() (no change needed)
+**All 194 tests pass** (last confirmed on main at commit 11223d8).
 
 ---
 
-## Implementation vs Plan Delta
+## Uncommitted Working Tree Changes
 
-The implementation diverged from the plan in several beneficial ways:
+The following files have unstaged modifications (not yet committed):
 
-| Plan | Actual | Notes |
+| File | Change |
+|---|---|
+| `.github/workflows/build.yml` | Added SPM cache + FluidAudio bridge build step (Story 7, FA plan) |
+| `.github/workflows/release.yml` | Same FluidAudio bridge build additions |
+| `.gitignore` | Added `native/FluidDiarizationBridge/.build/` and `libFluidDiarizationBridge.dylib` |
+| `composeApp/build.gradle.kts` | Added `fluidAudioEnabled` property guard on `buildFluidDiarizationBridge` task |
+| `native/FluidDiarizationBridge/.gitignore` | New untracked file |
+
+These changes complete the Gradle + CI integration for the FluidAudio bridge (Stories 6 & 7
+from `docs/tasks/fluida-audio-backends.md`). They should be committed before starting new work.
+
+---
+
+## FluidAudio Diarization Backends (fluida-audio-backends.md)
+
+**State: Checkpoint A complete + Checkpoint B partially complete**
+
+| Story | Description | Status |
 |---|---|---|
-| Separate C JNI (`libPipeWireCaptureBridge.so`) | Single Rust crate (`libagrapha_native.so`) | Covers PipeWire + global hotkeys + macOS audio in one binary |
-| Swift+ObjC macOS bridge retained | Replaced by Rust objc2 bindings | Eliminates the Swift toolchain dependency from Linux CI |
-| ADR-003: in-window only for MVP | Full X11 XGrabKey + Wayland portal both implemented | Global hotkey works on both compositors |
-| SpeechOutputPlugin without `version` or `isAvailable()` | Interface has `version: String` and `isAvailable()` | Richer contract for plugin management UI |
-| TextInjector with `isAvailable(): Boolean` | Interface uses `checkStatus(): Status` enum | Three-state health (OK / NOT_INSTALLED / DAEMON_NOT_RUNNING) |
-| `SilentAudioBackend` name | `NoOpSystemAudioBackend` name | Same semantics |
+| 1 | DiarizationBackend interface + exceptions (commonMain) | Done |
+| 2 | PyannoteDiarizationBackend wrapper | Done |
+| 3 | AudioAiBackendFactory + AppSettings.diarizationBackend | Done |
+| 4 | PipelineQueueExecutor diarization block refactor | Done |
+| 5 | FluidAudioDiarizationBackend skeleton (Kotlin) | Done |
+| 6 | Swift SPM package FluidDiarizationBridgeJNI.swift | Done (stubs complete; FluidAudio URL is placeholder) |
+| 7 | Gradle buildFluidDiarizationBridge task + CI integration | Done (uncommitted) |
+| 8 | FluidAudioDiarizationBackend full implementation | Blocked (FluidAudio SPM URL must be real) |
+| 9 | OnnxDiarizationBackend stub | Done |
+| 10 | Settings UI backend selector + model download button | Done |
+| 11 | Tests (DiarizationBackendContractTest, AudioAiBackendFactoryTest, PipelineQueueExecutorDiarizationTest) | Done |
+
+**Blocker:** `native/FluidDiarizationBridge/Package.swift` references
+`https://github.com/fluidinference/FluidAudio` as a placeholder. The build step runs
+`continue-on-error: true` in CI because this URL does not yet resolve to a real SPM package.
+When FluidAudio publishes a Swift Package, update `Package.swift` and remove the
+`continue-on-error` flag.
+
+---
+
+## Transcription + Diarization Improvement (transcription-diarization-improvement.md)
+
+**State: Story 1 and Story 3 complete; Story 2 partial; Stories 4 complete**
+
+| Story/Task | Description | Status |
+|---|---|---|
+| Story 1 / Task 1.1 | N-gram repetition loop detection in WhisperService | Done |
+| Story 1 / Task 1.2 | Buffer validation + CoreML status logging | Done (buffer validation in; backend logging partial — `detectedBackend` property exists, backend type detection not surfaced as "CoreML" vs "CPU" from loadLibraryOnce) |
+| Story 1 / Task 1.3 | Configurable whisperInitialPrompt + noSpeechThreshold in AppSettings | Done |
+| Story 2 / Task 2.1 | distil-large-v3 + distil-large-v3.5 added to WhisperModelDownloader | Done |
+| Story 2 / Task 2.2 | WER measurement harness | Not started |
+| Story 3 / Task 3.1 | diarize_session.py Python sidecar | Done (exists in native/) |
+| Story 3 / Task 3.2 | DiarizationService.kt (subprocess lifecycle + JSON parsing) | Done |
+| Story 3 / Task 3.3 | PipelineQueueExecutor diarization integration | Done |
+| Story 3 / Task 3.4 | Diarization Settings UI (toggle + HF token + max speakers) | Done |
+| Story 4 / Task 4.1 | TranscriptCorrectionService.kt (batched Ollama correction) | Done |
+| Story 4 / Task 4.2 | Correction pipeline integration + settings toggle | Done |
+
+**Remaining:** WER measurement harness (Task 2.2) — a JUnit test utility `@Ignore`d by default.
+Low urgency; needed to gate Phase 2 Moonshine JNI decisions.
+
+---
+
+## Agrapha Extraction (agrapha-extraction.md)
+
+**State: Stories 1–3 complete; Story 4 not applicable (monorepo cleanup)**
+
+Agrapha is live at `tstapler/agrapha`. GitHub Actions CI and release pipeline are in place.
+Story 4 tasks (monorepo cleanup) target the private monorepo and are out of scope for this repo.
 
 ---
 
@@ -74,27 +96,31 @@ The implementation diverged from the plan in several beneficial ways:
 
 No bugs tracked in `docs/bugs/` at this time.
 
-The following known risks from the plan are unresolved — they are environmental constraints, not
-code defects:
+Known risks and their current mitigation status:
 
-| Risk | Status | Mitigation |
+| Risk / Bug | Severity | Status |
 |---|---|---|
-| R3: whisper-jni AVX2 requirement (SIGILL on pre-Haswell) | Resolved | `WhisperService.loadLibraryOnce()` calls `PlatformInfo.avx2Supported()` on Linux; throws UnsatisfiedLinkError with a clear message |
-| R5: Global hotkey impossible on GNOME Wayland without portal | Mitigated | Wayland portal path implemented in global_shortcut.rs; in-window fallback logged gracefully |
-| R2: ydotoold daemon not running | Mitigated | YdotoolStatus enum + DictationPlugin logs warning; xdotool fallback via AutoDetectTextInjector |
+| BUG-TD-001: WhisperService SIGSEGV on empty audio buffer | Critical | Mitigated — buffer validation added in Task 1.2 (require non-empty, >= 1600 samples) |
+| BUG-TD-002: CoreML ANE silent fallback on M4 + macOS 26.4 beta | High | Partially mitigated — `detectedBackend` property exists; `loadLibraryOnce()` needs to set it to "CoreML" vs "CPU" after branch selection |
+| BUG-FA-001: JNI thread deadlock (DispatchSemaphore pattern) | High | Mitigated by design — DispatchSemaphore implemented in FluidDiarizationBridgeJNI.swift |
+| BUG-FA-002: Dylib notarization gate (Gatekeeper) | High | Mitigated — `codesign -f -s -` in Gradle task; BackendUnavailableException on load failure |
+| BUG-FA-003: FluidAudio SPM URL is a placeholder | High | Active — `Package.swift` and CI step both guarded; blocks Story 8 |
+| BUG-TD-003: DiarizationService process timeout on long meetings | Medium | Mitigated — 60-min default configurable |
+| BUG-AE-001: Gatekeeper distribution friction (no notarization) | High | Mitigated — cask caveats + README note the xattr workaround |
+| BUG-FA-004: ANE memory contention on M1 | Medium | Mitigated — Mutex + limitedParallelism(1) in FluidAudioDiarizationBackend |
+| BUG-TD-004: TranscriptCorrectionService hallucination risk | Medium | Mitigated by design — temperature=0.0, conservative prompt |
 
 ---
 
-## Next After PR #1 Merge
+## Next After Uncommitted Work is Committed
 
-The following work streams are queued but not started:
+Priority order for next work:
 
-1. **LIVE_CAPTIONS activation UI** — `LiveCaptionsOverlay` is wired; `DictationPlugin` exists in
-   `Main.kt`; missing: a Settings toggle or hotkey to call `plugin.activate(LIVE_CAPTIONS, ...)`.
-   Also needs `WhisperService` wired into `DictationPlugin` for transcription to work.
-2. **FluidAudio diarization backends** — tracked in `docs/tasks/fluida-audio-backends.md`
-3. **Transcription/diarization improvements** — tracked in `docs/tasks/transcription-diarization-improvement.md`
-4. **Agrapha extraction** — tracked in `docs/tasks/agrapha-extraction.md`
+1. **Commit working tree changes** — CI/release YAML + build.gradle.kts + .gitignore cleanup from Stories 6 & 7 (fluida-audio-backends plan). 5-minute task, unblocks clean git state.
+2. **CoreML backend type detection** (BUG-TD-002 / Task 1.2 completion) — `loadLibraryOnce()` does not currently set `detectedBackend` to "CoreML" vs "CPU" after loading. One small change in `WhisperService.kt`.
+3. **WER measurement harness** (Task 2.2) — `WerBaseline.kt` JUnit utility, `@Ignore`d by default, enables Phase 2 Moonshine gating decision. Requires real meeting recordings with ground-truth transcripts.
+4. **FluidAudio SPM URL resolution** — when FluidAudio publishes a Swift Package, update `Package.swift`, remove `continue-on-error` from CI, and run Story 8 full implementation.
+5. **LIVE_CAPTIONS activation UI** — `LiveCaptionsOverlay` is wired; `DictationPlugin` exists in `Main.kt`; missing: a Settings toggle or hotkey to call `plugin.activate(LIVE_CAPTIONS, ...)`.
 
 ---
 
@@ -103,7 +129,7 @@ The following work streams are queued but not started:
 | File | Status | Description |
 |---|---|---|
 | `docs/tasks/linux-dictation-plugin.md` | Complete | All 22 stories done including Story 1.3 Linux CI |
-| `docs/tasks/fluida-audio-backends.md` | Queued | FluidAudio CoreML diarization backend |
-| `docs/tasks/transcription-diarization-improvement.md` | Queued | Diarization + transcription quality work |
-| `docs/tasks/agrapha-extraction.md` | Queued | Agrapha core extraction / packaging |
+| `docs/tasks/fluida-audio-backends.md` | Checkpoint A + B partial | Stories 1–7, 9–11 done; Story 8 blocked on FluidAudio SPM URL |
+| `docs/tasks/transcription-diarization-improvement.md` | Mostly complete | Stories 1, 3, 4 done; Task 2.2 (WER harness) not started |
+| `docs/tasks/agrapha-extraction.md` | Complete (in-repo scope) | Repo is live; Story 4 monorepo cleanup out of scope here |
 | `project_plans/linux-dictation-plugin/` | Complete | Full 5-epic plan — all stories implemented |

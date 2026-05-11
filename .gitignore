@@ -19,9 +19,11 @@ out/
 # Native build artifacts
 native/WhisperCoreML/build/
 native/AudioCaptureBridge/.build/
+native/FluidDiarizationBridge/.build/
 composeApp/src/desktopMain/resources/libwhisperjni-coreml.dylib
 composeApp/src/desktopMain/resources/AudioCaptureBridgeJNI.dylib
 composeApp/src/desktopMain/resources/libAudioCaptureBridge.dylib
+composeApp/src/desktopMain/resources/libFluidDiarizationBridge.dylib
 
 # Whisper models (large binary files — download via Settings UI)
 **/*.bin

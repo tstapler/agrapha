@@ -59,6 +59,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      - name: Cache Swift Package Manager
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            native/FluidDiarizationBridge/.build
+          key: ${{ runner.os }}-spm-${{ hashFiles('native/FluidDiarizationBridge/Package.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Build FluidAudio bridge
+        run: ./gradlew :composeApp:buildFluidDiarizationBridge -PfluidAudioEnabled=true --no-daemon
+        continue-on-error: true  # FluidAudio SPM package URL is a placeholder — update Package.swift when available
+
       - name: Build release DMG
         run: ./gradlew :composeApp:packageReleaseDmg --no-daemon
 

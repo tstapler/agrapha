@@ -134,10 +134,15 @@ val fluidBridgeDir = project.file("native/FluidDiarizationBridge")
 val fluidBridgeDylib = project.file("native/FluidDiarizationBridge/.build/release/libFluidDiarizationBridge.dylib")
 val fluidBridgeResource = project.file("src/desktopMain/resources/libFluidDiarizationBridge.dylib")
 
+// Set -PfluidAudioEnabled=true to build the bridge (requires FluidAudio SPM package URL to be valid).
+// Default is false so that desktopTest / packageReleaseDmg work without the bridge.
+// The Kotlin factory falls back to PyannoteDiarizationBackend when the dylib is absent.
+val fluidAudioEnabled = isMacOs && project.findProperty("fluidAudioEnabled") == "true"
+
 val buildFluidDiarizationBridge by tasks.registering(Exec::class) {
     description = "Build libFluidDiarizationBridge.dylib via Swift Package Manager (macOS only)"
     group = "build"
-    enabled = isMacOs
+    enabled = fluidAudioEnabled
 
     val javaHome = System.getenv("JAVA_HOME")
         ?: "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home"
