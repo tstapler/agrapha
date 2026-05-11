@@ -5,6 +5,7 @@ import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
 import com.meetingnotes.audio.MeetingDetector
 import com.meetingnotes.dictation.plugin.DictationPlugin
+import com.meetingnotes.plugin.DictationMode
 import com.meetingnotes.transcription.ModelDownloadManager
 import com.meetingnotes.data.FileStorageService
 import com.meetingnotes.data.MeetingRepository
@@ -62,6 +63,7 @@ fun ApplicationScope.AppRoot(
     // so changes saved in SettingsScreen take effect immediately.
     var autoRecordZoom by remember { mutableStateOf(false) }
     var autoRecordGoogleMeet by remember { mutableStateOf(false) }
+    var liveCaptionsEnabled by remember { mutableStateOf(false) }
 
     // Check onboarding on first composition, then run retention cleanup
     var onboardingComplete by remember { mutableStateOf<Boolean?>(null) }
@@ -95,6 +97,17 @@ fun ApplicationScope.AppRoot(
             val settings = withContext(Dispatchers.IO) { settingsRepository.load() }
             autoRecordZoom = settings.autoRecordZoom
             autoRecordGoogleMeet = settings.autoRecordGoogleMeet
+            liveCaptionsEnabled = settings.liveCaptionsEnabled
+        }
+    }
+
+    // Activate / deactivate LIVE_CAPTIONS when the setting changes
+    LaunchedEffect(liveCaptionsEnabled) {
+        val plugin = dictationPlugin ?: return@LaunchedEffect
+        if (liveCaptionsEnabled) {
+            plugin.activate(DictationMode.LIVE_CAPTIONS, emptyMap())
+        } else {
+            plugin.deactivate()
         }
     }
 

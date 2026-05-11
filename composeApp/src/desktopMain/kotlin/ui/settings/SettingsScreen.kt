@@ -97,6 +97,16 @@ fun SettingsScreen(
             )
         }
 
+        // ── Dictation ──────────────────────────────────────────────────────
+        SectionHeader("Dictation")
+
+        AutoRecordToggle(
+            label = "Live Captions overlay",
+            description = "Streams microphone audio to a floating always-on-top overlay while active.",
+            checked = settings.liveCaptionsEnabled,
+            onCheckedChange = { viewModel.onSettingsChange(settings.copy(liveCaptionsEnabled = it)) },
+        )
+
         // ── Whisper Model ──────────────────────────────────────────────────
         SectionHeader("Whisper Model")
 

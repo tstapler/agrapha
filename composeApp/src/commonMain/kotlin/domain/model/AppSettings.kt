@@ -85,4 +85,6 @@ data class AppSettings(
      * Download from huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx
      */
     val parakeetModelDir: String = "",
+    /** Activate LIVE_CAPTIONS mode — streams mic audio to a floating always-on-top overlay. */
+    val liveCaptionsEnabled: Boolean = false,
 )
