@@ -76,6 +76,50 @@ class SettingsViewModelTest {
         assertEquals(expected.logseqWikiPath, loaded.settings.logseqWikiPath)
     }
 
+    // ── S4-UNIT-11b: Persistence Round-Trip — extended fields ─────────────────
+    // Regression test: diarization, correction, transcription, and live-captions
+    // settings were absent from SettingsRepository.load()/save() and did not
+    // survive app restarts.
+
+    @Test
+    fun `save persists diarization, correction, transcription, and live-captions fields`() = runTest(UnconfinedTestDispatcher()) {
+        val wikiDir = tempFolder.newFolder("wiki_extended")
+        val expected = AppSettings(
+            logseqWikiPath = wikiDir.absolutePath,
+            diarizationEnabled = true,
+            huggingFaceToken = "hf_test_token",
+            diarizationMaxSpeakers = 4,
+            diarizationBackend = "python",
+            correctionEnabled = true,
+            transcriptionBackend = "apple-speech",
+            parakeetModelDir = "/models/parakeet",
+            liveCaptionsEnabled = true,
+            whisperInitialPrompt = "Custom prompt.",
+            whisperNoSpeechThreshold = 0.5f,
+            enabledPlugins = mapOf("com.agrapha.dictation" to false),
+        )
+
+        val vm1 = SettingsViewModel(settingsRepo, this)
+        vm1.onSettingsChange(expected)
+        vm1.save()
+        vm1.state.first { it.saveSuccess }
+
+        val vm2 = SettingsViewModel(settingsRepo, this)
+        val loaded = vm2.state.first { !it.loading }.settings
+
+        assertEquals(expected.diarizationEnabled, loaded.diarizationEnabled)
+        assertEquals(expected.huggingFaceToken, loaded.huggingFaceToken)
+        assertEquals(expected.diarizationMaxSpeakers, loaded.diarizationMaxSpeakers)
+        assertEquals(expected.diarizationBackend, loaded.diarizationBackend)
+        assertEquals(expected.correctionEnabled, loaded.correctionEnabled)
+        assertEquals(expected.transcriptionBackend, loaded.transcriptionBackend)
+        assertEquals(expected.parakeetModelDir, loaded.parakeetModelDir)
+        assertEquals(expected.liveCaptionsEnabled, loaded.liveCaptionsEnabled)
+        assertEquals(expected.whisperInitialPrompt, loaded.whisperInitialPrompt)
+        assertEquals(expected.whisperNoSpeechThreshold, loaded.whisperNoSpeechThreshold)
+        assertEquals(expected.enabledPlugins, loaded.enabledPlugins)
+    }
+
     // ── S4-UNIT-12: Invalid Wiki Path ─────────────────────────────────────────
 
     @Test
