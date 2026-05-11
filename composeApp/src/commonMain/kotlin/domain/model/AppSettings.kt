@@ -64,6 +64,14 @@ data class AppSettings(
      */
     val enabledPlugins: Map<String, Boolean> = emptyMap(),
     /**
+     * Which diarization backend to use.
+     * Valid values: "fluida" (default, CoreML on macOS 14+ via FluidAudio), "python" (pyannote subprocess),
+     * "onnx" (ONNX Runtime — not yet implemented, see ADR-001).
+     * The factory falls back to "python" when "fluida" is selected on macOS < 14 or if the dylib is absent.
+     * Old settings files without this field deserialize to "fluida" via kotlinx.serialization defaults.
+     */
+    val diarizationBackend: String = "fluida",
+    /**
      * Which transcription backend to use for dictation (DictationPlugin).
      * Valid values: "whisper" (default, cross-platform GGML), "apple-speech" (macOS only),
      * or "parakeet" (ONNX Runtime, requires separate model download — see [parakeetModelDir]).

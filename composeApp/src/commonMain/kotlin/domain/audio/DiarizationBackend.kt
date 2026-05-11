@@ -131,5 +131,24 @@ interface DiarizationBackend {
     fun applyDiarization(
         segments: List<TranscriptSegment>,
         diarizationSegments: List<DiarizationSegment>,
-    ): List<TranscriptSegment>
+    ): List<TranscriptSegment> {
+        if (diarizationSegments.isEmpty()) return segments
+        val speakerIndexMap = LinkedHashMap<String, Int>()
+        for (seg in diarizationSegments.sortedBy { it.startSec }) {
+            if (seg.speaker !in speakerIndexMap) speakerIndexMap[seg.speaker] = speakerIndexMap.size + 1
+        }
+        return segments.map { seg ->
+            if (seg.speakerLabel != "Caller") return@map seg
+            val segStart = seg.startMs / 1000.0
+            val segEnd = seg.endMs / 1000.0
+            val bestSpeaker = diarizationSegments
+                .mapNotNull { d ->
+                    val overlap = minOf(segEnd, d.endSec) - maxOf(segStart, d.startSec)
+                    if (overlap > 0.0) d.speaker to overlap else null
+                }
+                .maxByOrNull { it.second }?.first
+            val index = bestSpeaker?.let { speakerIndexMap[it] } ?: return@map seg
+            seg.copy(speakerLabel = "Caller $index")
+        }
+    }
 }

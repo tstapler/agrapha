@@ -3,15 +3,17 @@ package com.meetingnotes.domain
 import com.meetingnotes.audio.RecordingSessionManager
 import com.meetingnotes.data.MeetingRepository
 import com.meetingnotes.data.SettingsRepository
+import com.meetingnotes.data.audio.AudioAiBackendFactory
 import com.meetingnotes.data.llm.LlmProviderFactory
+import com.meetingnotes.domain.audio.DiarizationFailedException
+import com.meetingnotes.domain.audio.DiarizationTimeoutException
+import com.meetingnotes.domain.audio.DiarizationUnavailableException
+import com.meetingnotes.domain.audio.ModelDownloadRequiredException
+import com.meetingnotes.domain.model.AppSettings
 import com.meetingnotes.domain.model.RecordingState
 import com.meetingnotes.domain.model.TranscriptSegment
 import com.meetingnotes.export.LogseqExporter
 import com.meetingnotes.transcription.AudioPreprocessor
-import com.meetingnotes.domain.audio.DiarizationFailedException
-import com.meetingnotes.domain.audio.DiarizationTimeoutException
-import com.meetingnotes.domain.audio.DiarizationUnavailableException
-import com.meetingnotes.transcription.PyannoteDiarizationBackend
 import com.meetingnotes.transcription.WhisperService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -45,6 +47,8 @@ class PipelineQueueExecutor(
     private val repository: MeetingRepository,
     private val settingsRepository: SettingsRepository,
     whisperService: WhisperService = WhisperService(),
+    private val diarizationBackendFactory: (AppSettings) -> com.meetingnotes.domain.audio.DiarizationBackend =
+        { settings -> AudioAiBackendFactory.createDiarizationBackend(settings) },
 ) : Closeable {
 
     private data class QueueEntry(val meetingId: String, val startFromMs: Long = 0L)
@@ -171,11 +175,11 @@ class PipelineQueueExecutor(
 
             // ── Optional diarization runner ────────────────────────────────
             val diarizationRunnerFull: (suspend (String, String) -> List<TranscriptSegment>?)? =
-                if (settings.diarizationEnabled && settings.huggingFaceToken.isNotBlank()) {
+                if (settings.diarizationEnabled) {
                     { audioPath, meetingId ->
                         try {
                             val (_, sysPath) = AudioPreprocessor.splitChannels(java.nio.file.Path.of(audioPath))
-                            val backend = PyannoteDiarizationBackend()
+                            val backend = diarizationBackendFactory(settings)
                             val maxSpeakers = settings.diarizationMaxSpeakers.takeIf { it > 0 }
                             val diarizationSegments = backend.diarize(
                                 audioFilePath = sysPath.toString(),
@@ -186,6 +190,10 @@ class PipelineQueueExecutor(
                                 repository.getSegmentsByMeetingId(meetingId)
                             }
                             backend.applyDiarization(segments, diarizationSegments)
+                        } catch (e: ModelDownloadRequiredException) {
+                            log("diarization models not downloaded: ${e.message}")
+                            localState.value = RecordingState.NeedingModelDownload
+                            null
                         } catch (e: DiarizationUnavailableException) {
                             log("diarization unavailable: ${e.message}")
                             null

@@ -164,28 +164,35 @@ fun SettingsScreen(
 
         AutoRecordToggle(
             label = "Enable speaker diarization",
-            description = "Identifies individual speakers after recording ends. Requires Python 3.10+ with pyannote.audio installed. One-time model download requires a Hugging Face token.",
+            description = "Identifies individual speakers after recording ends.",
             checked = settings.diarizationEnabled,
             onCheckedChange = { viewModel.onSettingsChange(settings.copy(diarizationEnabled = it)) },
         )
 
         if (settings.diarizationEnabled) {
-            OutlinedTextField(
-                value = settings.huggingFaceToken,
-                onValueChange = { viewModel.onSettingsChange(settings.copy(huggingFaceToken = it)) },
-                label = { Text("Hugging Face token") },
-                placeholder = { Text("hf_…") },
-                isError = "huggingFaceToken" in errors,
-                supportingText = {
-                    errors["huggingFaceToken"]?.let { Text(it) } ?: Text(
-                        "Only needed once to download the pyannote model. Can be cleared after first use. Get yours at hf.co/settings/tokens",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
+            DiarizationBackendSelector(
+                selected = settings.diarizationBackend,
+                onSelect = { viewModel.onSettingsChange(settings.copy(diarizationBackend = it)) },
             )
+
+            if (settings.diarizationBackend == "python") {
+                OutlinedTextField(
+                    value = settings.huggingFaceToken,
+                    onValueChange = { viewModel.onSettingsChange(settings.copy(huggingFaceToken = it)) },
+                    label = { Text("Hugging Face token") },
+                    placeholder = { Text("hf_…") },
+                    isError = "huggingFaceToken" in errors,
+                    supportingText = {
+                        errors["huggingFaceToken"]?.let { Text(it) } ?: Text(
+                            "Only needed once to download the pyannote model. Can be cleared after first use. Get yours at hf.co/settings/tokens",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
 
             val speakerOptions = listOf(0, 2, 3, 4, 5, 6, 8)
             val speakerLabel = if (settings.diarizationMaxSpeakers == 0) "Auto-detect" else "${settings.diarizationMaxSpeakers} speakers"
@@ -503,6 +510,58 @@ private fun AutoRecordToggle(
             )
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+// ── Diarization backend selector ─────────────────────────────────────────────
+
+private data class BackendOption(val id: String, val label: String, val enabled: Boolean = true)
+
+private val DIARIZATION_BACKENDS = listOf(
+    BackendOption("fluida", "FluidAudio (macOS 14+)"),
+    BackendOption("python", "Python / pyannote"),
+    BackendOption("onnx",   "ONNX (not yet available)", enabled = false),
+)
+
+@Composable
+private fun DiarizationBackendSelector(selected: String, onSelect: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val current = DIARIZATION_BACKENDS.find { it.id == selected } ?: DIARIZATION_BACKENDS.first()
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+            OutlinedTextField(
+                value = current.label,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Diarization backend") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                modifier = Modifier.fillMaxWidth().menuAnchor(),
+            )
+            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                DIARIZATION_BACKENDS.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                option.label,
+                                color = if (option.enabled) MaterialTheme.colorScheme.onSurface
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                            )
+                        },
+                        onClick = { if (option.enabled) { onSelect(option.id); expanded = false } },
+                        enabled = option.enabled,
+                    )
+                }
+            }
+        }
+
+        if (selected == "fluida") {
+            Text(
+                "Runs on-device via CoreML — no Python, no HuggingFace token. Requires macOS 14+.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
