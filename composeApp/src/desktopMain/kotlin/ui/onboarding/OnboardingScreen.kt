@@ -37,11 +37,12 @@ fun OnboardingScreen(
     onComplete: () -> Unit,
     onNavigate: (AppDestination) -> Unit,
 ) {
-    // Start at step 1 (skip permission) if screen recording is already granted.
+    // Start at step 1 (skip permission) if screen recording is already granted,
+    // or if the JNI method is unavailable (Linux — no TCC permission concept).
     var step by remember {
         mutableIntStateOf(
             try { if (ScreenCaptureJniBridge.nativeCheckPermission()) 1 else 0 }
-            catch (_: Throwable) { 0 }
+            catch (_: Throwable) { 1 }
         )
     }
 
@@ -72,7 +73,7 @@ fun OnboardingScreen(
                     "After granting, come back and click 'Continue'.",
                 actionLabel = "Request Permission",
                 onAction = {
-                    try { ScreenCaptureJniBridge.nativeRequestPermission() } catch (_: Exception) {}
+                    try { ScreenCaptureJniBridge.nativeRequestPermission() } catch (_: Throwable) {}
                 },
                 onContinue = { step = 1 },
             )

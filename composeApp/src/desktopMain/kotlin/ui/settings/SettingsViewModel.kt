@@ -67,6 +67,13 @@ class SettingsViewModel(
 
     // ── Private ──────────────────────────────────────────────────────────────
 
+    private fun expandPath(path: String): String {
+        var expanded = if (path.startsWith("~")) System.getProperty("user.home") + path.substring(1) else path
+        expanded = expanded.replace(Regex("""\$\{([^}]+)}""")) { System.getenv(it.groupValues[1]) ?: it.value }
+        expanded = expanded.replace(Regex("""\$([A-Za-z_][A-Za-z0-9_]*)""")) { System.getenv(it.groupValues[1]) ?: it.value }
+        return expanded
+    }
+
     private fun validate(settings: AppSettings): Map<String, String> {
         val errors = mutableMapOf<String, String>()
 
@@ -75,9 +82,23 @@ class SettingsViewModel(
         }
 
         if (settings.logseqWikiPath.isNotBlank()) {
-            val wikiDir = File(settings.logseqWikiPath)
+            val wikiDir = File(expandPath(settings.logseqWikiPath))
             if (!wikiDir.exists()) errors["logseqWikiPath"] = "Directory does not exist"
             else if (!wikiDir.isDirectory) errors["logseqWikiPath"] = "Path is not a directory"
+        }
+
+        if (settings.transcriptionBackend == "parakeet" && settings.parakeetModelDir.isNotBlank()) {
+            val modelDir = File(expandPath(settings.parakeetModelDir))
+            if (!modelDir.exists()) {
+                errors["parakeetModelDir"] = "Directory does not exist"
+            } else if (!modelDir.isDirectory) {
+                errors["parakeetModelDir"] = "Path is not a directory"
+            } else {
+                val encoderFile = File(modelDir, "encoder.onnx")
+                if (!encoderFile.exists()) {
+                    errors["parakeetModelDir"] = "encoder.onnx not found in directory"
+                }
+            }
         }
 
         if (settings.llmProvider != LlmProvider.OLLAMA && settings.llmApiKey.isNullOrBlank()) {

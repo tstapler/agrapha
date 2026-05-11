@@ -1,0 +1,40 @@
+[package]
+name = "agrapha-native"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "agrapha_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+jni = "0.21"
+libc = "0.2"
+
+# ── Linux-only ────────────────────────────────────────────────────────────────
+# PipeWire audio capture — 0.9.x required for PipeWire 1.x headers
+[target.'cfg(target_os = "linux")'.dependencies]
+pipewire = "0.9"
+libspa = "0.9"
+
+# X11 global hotkey (works on X11 and XWayland)
+x11rb = { version = "0.13", features = ["allow-unsafe-code"] }
+
+# Wayland global shortcut portal (GNOME 46+ / KDE Plasma 6)
+zbus = { version = "4", features = ["blocking"] }
+
+# ── macOS-only ────────────────────────────────────────────────────────────────
+# ScreenCaptureKit system audio via objc2 framework bindings.
+# objc2-screen-capture-kit 0.3 requires objc2 >=0.6.2,<0.8.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2                    = "0.6"
+objc2-foundation         = "0.3"
+objc2-screen-capture-kit = "0.3"      # default features include SCStream + SCShareableContent
+objc2-core-media         = "0.3"      # default features include CMSampleBuffer + CMBlockBuffer
+block2                   = "0.6"
+dispatch2                = "0.3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true

@@ -29,15 +29,24 @@ jobs:
           path: native/WhisperCoreML/build
           key: ${{ runner.os }}-whisper-jni-${{ hashFiles('native/WhisperCoreML/Makefile', 'gradle/libs.versions.toml') }}
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            native/agrapha-native/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('native/agrapha-native/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - name: Build WhisperCoreML dylib
         run: |
           brew install cmake
           cd native/WhisperCoreML
-          make
-
-      - name: Build AudioCaptureBridge dylib
-        run: |
-          cd native/AudioCaptureBridge
           make
 
       - name: Cache Gradle

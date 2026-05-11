@@ -1,4 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.gradle.internal.os.OperatingSystem
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -48,6 +49,7 @@ kotlin {
                 implementation(libs.sqldelight.sqlite.driver)
                 implementation(libs.ktor.client.cio)
                 implementation(libs.whisper.jni)
+                implementation("com.microsoft.onnxruntime:onnxruntime:1.20.0")
             }
         }
 
@@ -61,6 +63,63 @@ kotlin {
             }
         }
     }
+}
+
+// ── Rust native bridge (all platforms via Cargo) ──────────────────────────────
+// Single crate for all platforms:
+//   Linux  → libagrapha_native.so  (PipeWire audio + X11/Wayland hotkeys)
+//   macOS  → libagrapha_native.dylib (ScreenCaptureKit audio via objc2)
+//
+// Prerequisites:
+//   All:   rustup (stable toolchain)
+//   Linux: libpipewire-0.3-dev, libx11-xcb-dev
+//   macOS: Xcode Command Line Tools (for linker + Apple SDK frameworks)
+val os = OperatingSystem.current()
+val isLinux = os.isLinux
+val isMacOs = os.isMacOsX
+
+val nativeLibName = when {
+    isLinux -> "libagrapha_native.so"
+    isMacOs -> "libagrapha_native.dylib"
+    else    -> null
+}
+
+val buildAgraphaNative by tasks.registering(Exec::class) {
+    description = "Build libagrapha_native via Cargo"
+    group = "build"
+    enabled = isLinux || isMacOs
+
+    workingDir = rootProject.file("native/agrapha-native")
+    commandLine("cargo", "build", "--release")
+
+    inputs.dir(rootProject.file("native/agrapha-native/src"))
+    inputs.file(rootProject.file("native/agrapha-native/Cargo.toml"))
+    if (nativeLibName != null) {
+        outputs.file(rootProject.file("native/agrapha-native/target/release/$nativeLibName"))
+    }
+
+    doLast {
+        if (nativeLibName != null) {
+            val src = rootProject.file("native/agrapha-native/target/release/$nativeLibName")
+            val dst = project.file("src/desktopMain/resources/$nativeLibName")
+            dst.parentFile.mkdirs()
+            src.copyTo(dst, overwrite = true)
+        }
+    }
+}
+
+tasks.named("desktopProcessResources") {
+    if (isLinux || isMacOs) dependsOn(buildAgraphaNative)
+}
+
+val cleanAgraphaNative by tasks.registering(Exec::class) {
+    enabled = isLinux || isMacOs
+    workingDir = rootProject.file("native/agrapha-native")
+    commandLine("cargo", "clean")
+}
+
+tasks.named("clean") {
+    if (isLinux || isMacOs) dependsOn(cleanAgraphaNative)
 }
 
 sqldelight {
@@ -79,7 +138,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg)
             packageName = "Agrapha"
-            packageVersion = "1.0.0"
+            packageVersion = "1.0.0"  // x-release-please-version
             description = "Local meeting transcription that fits your memory system"
             vendor = "Agrapha"
             copyright = "© 2026 Agrapha contributors"

@@ -12,8 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.meetingnotes.data.FileStorageService
 import com.meetingnotes.domain.model.LlmProvider
+import com.meetingnotes.plugin.PluginLoader
+import com.meetingnotes.plugin.PluginLoadResult
 import com.meetingnotes.transcription.ModelDownloadManager
 import com.meetingnotes.transcription.ModelDownloadState
+import com.meetingnotes.transcription.TranscriptionBackendFactory
 import com.meetingnotes.transcription.WHISPER_MODELS
 import com.meetingnotes.transcription.WhisperModelSpec
 import com.meetingnotes.ui.AppDestination
@@ -25,6 +28,9 @@ fun SettingsScreen(
     storage: FileStorageService,
     modelDownloadManager: ModelDownloadManager,
     onNavigate: (AppDestination) -> Unit,
+    pluginResults: List<PluginLoadResult> = emptyList(),
+    onPluginToggle: (pluginId: String, enabled: Boolean) -> Unit = { _, _ -> },
+    onPluginUnload: (pluginId: String) -> Unit = {},
 ) {
     val uiState by viewModel.state.collectAsState()
     val settings = uiState.settings
@@ -51,8 +57,48 @@ fun SettingsScreen(
             Text("Settings", style = MaterialTheme.typography.headlineMedium)
         }
 
+        // ── Transcription Backend ──────────────────────────────────────────
+        SectionHeader("Transcription Engine")
+
+        val availableBackends = remember { TranscriptionBackendFactory.availableDescriptions() }
+        if (availableBackends.size > 1) {
+            LabeledDropdown(
+                label = "Dictation engine",
+                options = availableBackends.map { it.first },
+                selected = if (availableBackends.any { it.first == settings.transcriptionBackend })
+                    settings.transcriptionBackend else availableBackends.first().first,
+                optionLabel = { id -> availableBackends.find { it.first == id }?.second ?: id },
+                onSelect = { viewModel.onSettingsChange(settings.copy(transcriptionBackend = it)) },
+            )
+            Text(
+                "Apple Speech uses the macOS on-device model (no download, uses Neural Engine). " +
+                "The recording pipeline always uses Whisper regardless of this setting.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        if (settings.transcriptionBackend == "parakeet") {
+            OutlinedTextField(
+                value = settings.parakeetModelDir,
+                onValueChange = { viewModel.onSettingsChange(settings.copy(parakeetModelDir = it)) },
+                label = { Text("Parakeet model directory") },
+                placeholder = { Text("~/models/parakeet-tdt-0.6b-v3-onnx") },
+                isError = "parakeetModelDir" in errors,
+                supportingText = { errors["parakeetModelDir"]?.let { Text(it) } },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            Text(
+                "Directory containing encoder.onnx and tokens.txt. " +
+                "Download from huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         // ── Whisper Model ──────────────────────────────────────────────────
-        SectionHeader("Transcription (Whisper)")
+        SectionHeader("Whisper Model")
 
         ModelPickerSection(
             modelsDir = modelsDir,
@@ -211,6 +257,22 @@ fun SettingsScreen(
         RetentionPicker(
             days = settings.recordingRetentionDays,
             onChange = { viewModel.onSettingsChange(settings.copy(recordingRetentionDays = it)) },
+        )
+
+        // ── Plugins ────────────────────────────────────────────────────────
+        SectionHeader("Plugins")
+
+        PluginsSettingsSection(
+            results = pluginResults,
+            enabledPlugins = settings.enabledPlugins,
+            pluginDirExists = PluginLoader.defaultPluginDir.exists(),
+            onToggle = { id, enabled ->
+                onPluginToggle(id, enabled)
+                viewModel.onSettingsChange(
+                    settings.copy(enabledPlugins = settings.enabledPlugins + (id to enabled))
+                )
+            },
+            onUnload = onPluginUnload,
         )
 
         // ── Save ───────────────────────────────────────────────────────────

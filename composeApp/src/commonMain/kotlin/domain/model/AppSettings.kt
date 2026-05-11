@@ -57,4 +57,24 @@ data class AppSettings(
     val diarizationMaxSpeakers: Int = 0,
     /** Enable LLM-backed transcript error correction via Ollama after transcription. */
     val correctionEnabled: Boolean = false,
+    /**
+     * Per-plugin enable/disable state, keyed by [com.meetingnotes.plugin.SpeechOutputPlugin.id].
+     * Missing keys default to enabled (all plugins start enabled on first load).
+     * Old settings files without this field deserialize to [emptyMap] via kotlinx.serialization defaults.
+     */
+    val enabledPlugins: Map<String, Boolean> = emptyMap(),
+    /**
+     * Which transcription backend to use for dictation (DictationPlugin).
+     * Valid values: "whisper" (default, cross-platform GGML), "apple-speech" (macOS only),
+     * or "parakeet" (ONNX Runtime, requires separate model download — see [parakeetModelDir]).
+     * The recording pipeline always uses Whisper regardless of this setting.
+     */
+    val transcriptionBackend: String = "whisper",
+    /**
+     * Directory containing the Parakeet-TDT ONNX model files:
+     *   encoder.onnx + tokens.txt (required)
+     *   decoder.onnx + joiner.onnx (optional, for RNNT-style exports)
+     * Download from huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx
+     */
+    val parakeetModelDir: String = "",
 )

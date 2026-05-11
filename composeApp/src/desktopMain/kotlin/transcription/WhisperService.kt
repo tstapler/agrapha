@@ -1,6 +1,7 @@
 package com.meetingnotes.transcription
 
 import com.meetingnotes.domain.model.TranscriptSegment
+import com.meetingnotes.platform.PlatformInfo
 import io.github.givimad.whisperjni.WhisperContext
 import io.github.givimad.whisperjni.WhisperFullParams
 import io.github.givimad.whisperjni.WhisperJNI
@@ -263,12 +264,14 @@ class WhisperService : Closeable {
             trigrams[trigram] = count
             if (count >= 3) return true
         }
-        // Check long verbatim repeat: text normalized is >90% same as first half
+        // Check long verbatim repeat: second half of text is identical to the first half.
+        // e.g. "the cat sat the cat sat" → first half "the cat sat" == last 11 chars → true.
+        // Bug note: normalized.startsWith(half) is trivially true for any string (half IS the
+        // prefix by construction). Must use endsWith to check the second half matches the first.
         val normalized = text.trim().lowercase().replace(Regex("\\s+"), " ")
-        val half = normalized.substring(0, normalized.length / 2)
-        if (half.isNotEmpty() && normalized.startsWith(half) && normalized.length >= 20) {
-            val overlap = half.length.toDouble() / normalized.length
-            if (overlap > 0.45) return true  // first half covers >45% → near-duplicate repeat
+        if (normalized.length >= 20) {
+            val half = normalized.substring(0, normalized.length / 2)
+            if (normalized.endsWith(half)) return true
         }
         return false
     }
@@ -312,6 +315,13 @@ class WhisperService : Closeable {
             if (libraryLoaded) return
             synchronized(loadLock) {
                 if (libraryLoaded) return
+                // On Linux, verify AVX2 support required by whisper-jni's CPU backend.
+                if (PlatformInfo.isLinux() && !PlatformInfo.avx2Supported()) {
+                    throw UnsatisfiedLinkError(
+                        "Whisper CPU backend requires AVX2 (Intel Haswell 2013+ or AMD Ryzen). " +
+                        "Check /proc/cpuinfo for 'avx2' flag."
+                    )
+                }
                 // Prefer CoreML dylib (built by native/WhisperCoreML/make, bundled as resource).
                 val coremlLoaded = runCatching {
                     val stream = WhisperService::class.java.getResourceAsStream("/libwhisperjni-coreml.dylib")

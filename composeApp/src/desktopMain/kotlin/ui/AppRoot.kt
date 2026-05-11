@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
 import com.meetingnotes.audio.MeetingDetector
+import com.meetingnotes.dictation.plugin.DictationPlugin
 import com.meetingnotes.transcription.ModelDownloadManager
 import com.meetingnotes.data.FileStorageService
 import com.meetingnotes.data.MeetingRepository
@@ -37,6 +38,7 @@ fun ApplicationScope.AppRoot(
     repository: MeetingRepository,
     settingsRepository: SettingsRepository,
     storage: FileStorageService,
+    dictationPlugin: DictationPlugin? = null,
 ) {
     val appScope = rememberCoroutineScope()
     var windowVisible by remember { mutableStateOf(true) }
@@ -212,5 +214,9 @@ fun ApplicationScope.AppRoot(
                 }
             }
         }
+    }
+
+    if (dictationPlugin != null) {
+        LiveCaptionsOverlay(liveSegments = dictationPlugin.liveSegments)
     }
 }
