@@ -48,6 +48,12 @@ sealed class RecordingState {
     ) : RecordingState()
 
     /**
+     * Diarization backend is available but required models are not yet on disk.
+     * The pipeline pauses here so the UI can prompt the user to initiate download.
+     */
+    data object NeedingModelDownload : RecordingState()
+
+    /**
      * Post-hoc speaker diarization running via Python/pyannote sidecar.
      * Non-fatal — pipeline continues on failure with original "Caller" labels.
      */

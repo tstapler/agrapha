@@ -7,6 +7,12 @@ import com.meetingnotes.domain.model.TranscriptSegment
 /** Thrown when the backend is not operational (Python not found, sidecar script missing, or diarization disabled). */
 class DiarizationUnavailableException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
+/** Thrown when the backend cannot run on this platform (e.g. wrong OS version, missing native dylib). */
+class BackendUnavailableException(message: String, cause: Throwable? = null) : Exception(message, cause)
+
+/** Thrown when the backend is operational but required models have not been downloaded yet. */
+class ModelDownloadRequiredException(message: String) : Exception(message)
+
 /** Thrown when diarization processing exceeds the configured timeout. */
 class DiarizationTimeoutException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
@@ -64,6 +70,25 @@ interface DiarizationBackend {
      * This call should be fast (no model loading) and safe to call repeatedly.
      */
     suspend fun isAvailable(): Boolean
+
+    /**
+     * Returns true when all required model files are present on disk and the backend
+     * can run diarization without a network download step.
+     *
+     * For backends that manage model downloads lazily (e.g. Python/pyannote), this
+     * returns true without checking disk state — the download happens transparently
+     * inside [diarize].
+     *
+     * This call must be fast (no model loading) and safe to call repeatedly.
+     */
+    suspend fun areModelsAvailable(): Boolean
+
+    /**
+     * Explicitly trigger model download. May be a no-op for backends that download lazily.
+     *
+     * @throws BackendUnavailableException if the backend cannot run on this platform
+     */
+    suspend fun downloadModels()
 
     /**
      * Run speaker diarization on the mono system-audio WAV at [audioFilePath].

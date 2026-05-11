@@ -120,6 +120,16 @@ fun RecordingScreen(
                         }
                     }
 
+                    is RecordingState.NeedingModelDownload -> {
+                        Text("Diarization models not downloaded", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Open Settings to download the required speaker diarization models.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedButton(onClick = viewModel::resetToIdle) { Text("Cancel") }
+                    }
+
                     is RecordingState.Diarizing -> {
                         CircularProgressIndicator()
                         Text("Identifying speakers…", style = MaterialTheme.typography.bodyLarge)

@@ -47,6 +47,16 @@ class PyannoteDiarizationBackend : DiarizationBackend {
     }
 
     /**
+     * pyannote downloads models on first use via HuggingFace Hub, so there is no
+     * meaningful pre-check. Always returns true — model availability is handled
+     * transparently inside [diarize].
+     */
+    override suspend fun areModelsAvailable(): Boolean = true
+
+    /** pyannote manages its own model downloads at runtime; nothing to do here. */
+    override suspend fun downloadModels(): Unit = Unit
+
+    /**
      * Runs `diarize_session.py` as a subprocess and returns the raw diarization segments.
      *
      * @throws DiarizationUnavailableException if Python or the sidecar script cannot be found
