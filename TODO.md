@@ -1,6 +1,6 @@
 # Agrapha — Project Status
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-10
 **Active branch:** `feature/linux-dictation-plugin` (PR #1 open against `main`)
 
 ---
@@ -92,8 +92,12 @@ The following work streams are queued but not started:
 1. **LIVE_CAPTIONS activation UI** — `LiveCaptionsOverlay` is wired; `DictationPlugin` exists in
    `Main.kt`; missing: a Settings toggle or hotkey to call `plugin.activate(LIVE_CAPTIONS, ...)`.
    Also needs `WhisperService` wired into `DictationPlugin` for transcription to work.
-2. **FluidAudio diarization backends** — tracked in `docs/tasks/fluida-audio-backends.md`
-3. **Transcription/diarization improvements** — tracked in `docs/tasks/transcription-diarization-improvement.md`
+2. **FluidAudio diarization backends** — tracked in `docs/tasks/fluida-audio-backends.md`.
+   Next action: Task FA-1A — extend `DiarizationBackend` interface with `areModelsAvailable()`,
+   `downloadModels()`, and new exception types (`BackendUnavailableException`,
+   `ModelDownloadRequiredException`). 2 files, 2h. Unblocks Stories 2–10.
+3. **Transcription/diarization improvements** — Stories 1, 2.1, 3, 4 all implemented in code.
+   Task 2.2 WER harness is the only remaining item; blocked on manual WAV fixture preparation.
 4. **Agrapha extraction** — tracked in `docs/tasks/agrapha-extraction.md`
 
 ---
@@ -103,7 +107,7 @@ The following work streams are queued but not started:
 | File | Status | Description |
 |---|---|---|
 | `docs/tasks/linux-dictation-plugin.md` | Complete | All 22 stories done including Story 1.3 Linux CI |
-| `docs/tasks/fluida-audio-backends.md` | Queued | FluidAudio CoreML diarization backend |
-| `docs/tasks/transcription-diarization-improvement.md` | Queued | Diarization + transcription quality work |
+| `docs/tasks/fluida-audio-backends.md` | In Progress | DiarizationBackend interface (Story 1) partially done; FA-1A extension is next |
+| `docs/tasks/transcription-diarization-improvement.md` | Substantially Complete | Stories 1, 2.1, 3, 4 all implemented; Task 2.2 WER harness pending WAV fixtures |
 | `docs/tasks/agrapha-extraction.md` | Queued | Agrapha core extraction / packaging |
 | `project_plans/linux-dictation-plugin/` | Complete | Full 5-epic plan — all stories implemented |
