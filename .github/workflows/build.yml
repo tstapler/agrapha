@@ -75,7 +75,6 @@ jobs:
 
       - name: Build FluidAudio bridge
         run: ./gradlew :composeApp:buildFluidDiarizationBridge -PfluidAudioEnabled=true --no-daemon
-        continue-on-error: true  # FluidAudio SPM package URL is a placeholder — update Package.swift when available
 
       - name: Run desktop tests
         run: ./gradlew :composeApp:desktopTest --no-daemon

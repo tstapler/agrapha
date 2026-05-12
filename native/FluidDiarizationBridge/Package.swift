@@ -1,5 +1,4 @@
 // swift-tools-version:5.9
-// NOTE: FluidAudio package URL must be confirmed once the dependency is available.
 // The build task passes JAVA_HOME include paths via -Xcc flags (see composeApp/build.gradle.kts).
 
 import PackageDescription
@@ -15,9 +14,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        // FluidAudio CoreML diarization framework.
-        // TODO: confirm exact URL and version tag once the package is publicly available.
-        .package(url: "https://github.com/fluidinference/FluidAudio", from: "0.1.0"),
+        .package(url: "https://github.com/fluidinference/FluidAudio", from: "0.14.5"),
     ],
     targets: [
         // C shim that wraps the JNI function table behind plain C helpers so

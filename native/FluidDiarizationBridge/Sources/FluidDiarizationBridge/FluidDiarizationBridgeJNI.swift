@@ -9,12 +9,12 @@
 // Memory: all strings returned by nativeDiarize are standard JVM-managed jstrings created via
 // jni_new_string_utf — no manual free needed on the Kotlin side.
 //
-// FluidAudio API assumptions (verify against the installed SDK version):
-//   - OfflineDiarizerManager()          — init, loads CoreML model on first use
-//   - .areModelsDownloaded() async -> Bool
-//   - .downloadModels() async throws
-//   - .process(url: URL, maxSpeakers: Int?) async throws -> [SpeakerSegment]
-//   - SpeakerSegment: startTime: Double, endTime: Double, speakerId: String
+// FluidAudio v0.14.5 API:
+//   - OfflineDiarizerManager(config:)        — init; config holds speaker-count constraints
+//   - .prepareModels() async throws           — downloads + compiles CoreML models on first call
+//   - .process(_ url: URL) async throws -> DiarizationResult
+//   - DiarizationResult.segments: [TimedSpeakerSegment]
+//   - TimedSpeakerSegment: startTimeSeconds: Float, endTimeSeconds: Float, speakerId: String
 
 import Foundation
 import FluidAudio
@@ -22,8 +22,8 @@ import CJNIBridge
 
 // MARK: - Singleton
 
-/// Holds the OfflineDiarizerManager instance across JNI calls.
-/// CoreML model loading is expensive — instantiate once, reuse forever.
+/// Holds the default OfflineDiarizerManager for model caching.
+/// CoreML model loading is expensive — instantiate once and reuse.
 private final class BridgeState {
     static let shared = BridgeState()
     let diarizer = OfflineDiarizerManager()
@@ -48,8 +48,10 @@ private let encoder: JSONEncoder = {
     return e
 }()
 
-private func encodeSegments(_ segments: [SpeakerSegment]) -> String {
-    let mapped = segments.map { SegmentJson(start: $0.startTime, end: $0.endTime, speaker: $0.speakerId) }
+private func encodeSegments(_ segments: [TimedSpeakerSegment]) -> String {
+    let mapped = segments.map {
+        SegmentJson(start: Double($0.startTimeSeconds), end: Double($0.endTimeSeconds), speaker: $0.speakerId)
+    }
     guard let data = try? encoder.encode(mapped) else { return "[]" }
     return String(data: data, encoding: .utf8) ?? "[]"
 }
@@ -63,19 +65,21 @@ private func encodeError(_ message: String) -> String {
 
 // areModelsAvailable
 // Kotlin: private external fun nativeAreModelsAvailable(): Boolean
+// Checks whether the offline diarizer model cache exists on disk (no download triggered).
 @_cdecl("Java_com_meetingnotes_data_audio_FluidAudioDiarizationBackend_nativeAreModelsAvailable")
 public func nativeAreModelsAvailable(
     _ env: UnsafeMutableRawPointer,
     _ obj: UnsafeMutableRawPointer
 ) -> UInt8 {
-    let semaphore = DispatchSemaphore(value: 0)
-    var result = false
-    Task {
-        result = await BridgeState.shared.diarizer.areModelsDownloaded()
-        semaphore.signal()
+    let dir = OfflineDiarizerModels.defaultModelsDirectory()
+    var isDir: ObjCBool = false
+    let exists = FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir)
+    // Consider models available if the directory exists and is non-empty.
+    if exists && isDir.boolValue {
+        let contents = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        return contents.isEmpty ? 0 : 1
     }
-    semaphore.wait()
-    return result ? 1 : 0
+    return 0
 }
 
 // downloadModels
@@ -87,7 +91,7 @@ public func nativeDownloadModels(
 ) {
     let semaphore = DispatchSemaphore(value: 0)
     Task {
-        try? await BridgeState.shared.diarizer.downloadModels()
+        try? await BridgeState.shared.diarizer.prepareModels()
         semaphore.signal()
     }
     semaphore.wait()
@@ -95,6 +99,11 @@ public func nativeDownloadModels(
 
 // diarize
 // Kotlin: private external fun nativeDiarize(audioFilePath: String, maxSpeakers: Int, timeoutMinutes: Long): String
+//
+// maxSpeakers > 0 → configure clustering.maxSpeakers; 0 → auto-detect.
+// A new OfflineDiarizerManager is created per call when maxSpeakers differs from default so
+// that CoreML clustering constraints are applied correctly. Model files are already on disk
+// after nativeDownloadModels(), so the per-call prepareModels() load is fast (no HTTP fetch).
 @_cdecl("Java_com_meetingnotes_data_audio_FluidAudioDiarizationBackend_nativeDiarize")
 public func nativeDiarize(
     _ env: UnsafeMutableRawPointer,
@@ -111,19 +120,24 @@ public func nativeDiarize(
     jni_release_string_utf(env, audioFilePathJ, cPath)
 
     let audioURL = URL(fileURLWithPath: audioFilePath)
-    let maxSpeakersOpt: Int? = maxSpeakers > 0 ? Int(maxSpeakers) : nil
     let timeoutSeconds = Double(timeoutMinutes) * 60.0
+
+    let diarizer: OfflineDiarizerManager
+    if maxSpeakers > 0 {
+        var config = OfflineDiarizerConfig.default
+        config.clustering.maxSpeakers = Int(maxSpeakers)
+        diarizer = OfflineDiarizerManager(config: config)
+    } else {
+        diarizer = BridgeState.shared.diarizer
+    }
 
     let semaphore = DispatchSemaphore(value: 0)
     var jsonResult = ""
 
     Task {
         do {
-            let segments = try await BridgeState.shared.diarizer.process(
-                url: audioURL,
-                maxSpeakers: maxSpeakersOpt
-            )
-            jsonResult = encodeSegments(segments)
+            let result = try await diarizer.process(audioURL)
+            jsonResult = encodeSegments(result.segments)
         } catch {
             jsonResult = encodeError(error.localizedDescription)
         }
