@@ -130,8 +130,8 @@ tasks.named("clean") {
 //
 // Local development: built with ad-hoc codesign (`codesign -s -`).
 // Distribution: sign with a Developer ID certificate via notarytool before release.
-val fluidBridgeDir = project.file("native/FluidDiarizationBridge")
-val fluidBridgeDylib = project.file("native/FluidDiarizationBridge/.build/release/libFluidDiarizationBridge.dylib")
+val fluidBridgeDir = rootProject.file("native/FluidDiarizationBridge")
+val fluidBridgeDylib = rootProject.file("native/FluidDiarizationBridge/.build/release/libFluidDiarizationBridge.dylib")
 val fluidBridgeResource = project.file("src/desktopMain/resources/libFluidDiarizationBridge.dylib")
 
 // Set -PfluidAudioEnabled=true to build the bridge (requires FluidAudio SPM package URL to be valid).
@@ -154,8 +154,8 @@ val buildFluidDiarizationBridge by tasks.registering(Exec::class) {
         "-Xcc", "-I$javaHome/include/darwin",
     )
 
-    inputs.dir(project.file("native/FluidDiarizationBridge/Sources"))
-    inputs.file(project.file("native/FluidDiarizationBridge/Package.swift"))
+    inputs.dir(rootProject.file("native/FluidDiarizationBridge/Sources"))
+    inputs.file(rootProject.file("native/FluidDiarizationBridge/Package.swift"))
     outputs.file(fluidBridgeDylib)
 
     doLast {
@@ -169,7 +169,7 @@ val buildFluidDiarizationBridge by tasks.registering(Exec::class) {
 val cleanFluidDiarizationBridge by tasks.registering(Delete::class) {
     enabled = isMacOs
     delete(fluidBridgeResource)
-    delete(project.file("native/FluidDiarizationBridge/.build"))
+    delete(rootProject.file("native/FluidDiarizationBridge/.build"))
 }
 
 tasks.named("desktopProcessResources") {
@@ -205,9 +205,6 @@ val buildWhisperCuda by tasks.registering(Exec::class) {
     workingDir = rootProject.file("native/WhisperCUDA")
     commandLine("make")
 
-    inputs.dir(rootProject.file("native/WhisperCUDA/Sources"))
-        .withPropertyName("sources")
-        .withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(rootProject.file("native/WhisperCUDA/Makefile"))
     outputs.file(cudaSoResource)
 }

@@ -158,14 +158,15 @@ jobs:
           cache: gradle
 
       - name: Install CUDA toolkit
-        uses: Jimver/cuda-toolkit@v0.2.19
-        with:
-          cuda: '12.6.0'
-          method: 'network'
-          linux-local-args: '["--toolkit"]'
-
-      - name: Install cmake
-        run: sudo apt-get install -y --no-install-recommends cmake
+        run: |
+          # Add NVIDIA network repo and install only the compiler + headers.
+          # Installing the 'cuda' metapackage pulls in nvidia-dkms which fails
+          # to build kernel modules on CI; cuda-toolkit-12-6 is compiler-only.
+          wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+          sudo dpkg -i cuda-keyring_1.1-1_all.deb
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends cmake cuda-toolkit-12-6
+          echo "/usr/local/cuda/bin" >> "$GITHUB_PATH"
 
       # Cache the git clone only — NOT the cmake build directory (embeds absolute paths).
       - name: Cache whisper-jni CUDA source clone
