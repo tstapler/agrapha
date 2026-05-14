@@ -180,6 +180,52 @@ tasks.named("clean") {
     if (isMacOs) dependsOn(cleanFluidDiarizationBridge)
 }
 
+// ── CUDA-accelerated whisper-jni (Linux + NVIDIA GPU only) ───────────────────
+//
+// Mirrors the CoreML pattern: build once, bundle as a classpath resource, extracted
+// at runtime. Systems without CUDA drivers fall back to CPU automatically.
+//
+// Prerequisites: CUDA toolkit (nvcc). See native/WhisperCUDA/Makefile for details.
+//   Manjaro/Arch:  sudo pacman -S cuda && export PATH=/opt/cuda/bin:$PATH
+//   Ubuntu/Debian: sudo apt install nvidia-cuda-toolkit
+//
+// Enable for local builds:
+//   ./gradlew :composeApp:packageReleaseDmg -PcudaEnabled=true
+//   ./gradlew :composeApp:desktopRun        -PcudaEnabled=true
+//
+// CI: set cudaEnabled=true on a runner with an NVIDIA GPU and CUDA toolkit installed.
+val cudaEnabled = isLinux && project.findProperty("cudaEnabled") == "true"
+val cudaSoResource = project.file("src/desktopMain/resources/libwhisperjni-cuda.so")
+
+val buildWhisperCuda by tasks.registering(Exec::class) {
+    description = "Build libwhisperjni-cuda.so via Makefile and bundle into app resources (Linux + CUDA only)"
+    group = "build"
+    enabled = cudaEnabled
+
+    workingDir = rootProject.file("native/WhisperCUDA")
+    commandLine("make")
+
+    inputs.dir(rootProject.file("native/WhisperCUDA/Sources"))
+        .withPropertyName("sources")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(rootProject.file("native/WhisperCUDA/Makefile"))
+    outputs.file(cudaSoResource)
+}
+
+val cleanWhisperCuda by tasks.registering(Delete::class) {
+    enabled = isLinux
+    delete(cudaSoResource)
+    delete(rootProject.file("native/WhisperCUDA/build"))
+}
+
+tasks.named("desktopProcessResources") {
+    if (cudaEnabled) dependsOn(buildWhisperCuda)
+}
+
+tasks.named("clean") {
+    if (isLinux) dependsOn(cleanWhisperCuda)
+}
+
 sqldelight {
     databases {
         create("MeetingDatabase") {

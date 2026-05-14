@@ -16,11 +16,17 @@ out/
 .DS_Store
 *.xcworkspace
 
+# Nix
+result
+result-*
+
 # Native build artifacts
 native/WhisperCoreML/build/
+native/WhisperCUDA/build/
 native/AudioCaptureBridge/.build/
 native/FluidDiarizationBridge/.build/
 composeApp/src/desktopMain/resources/libwhisperjni-coreml.dylib
+composeApp/src/desktopMain/resources/libwhisperjni-cuda.so
 composeApp/src/desktopMain/resources/AudioCaptureBridgeJNI.dylib
 composeApp/src/desktopMain/resources/libAudioCaptureBridge.dylib
 composeApp/src/desktopMain/resources/libFluidDiarizationBridge.dylib

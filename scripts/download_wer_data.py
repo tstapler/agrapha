@@ -17,7 +17,10 @@ Run the harness after downloading:
         --tests "com.meetingnotes.transcription.WerBaselineTest"
 
 Requirements for --ami:
-    pip install datasets soundfile numpy
+    pip install "datasets<3.0" soundfile numpy librosa
+
+    datasets<3.0 requires Python <=3.12 (dill incompatibility with Python 3.14).
+    Use: uv run --python 3.12 --with "datasets<3.0" --with soundfile --with numpy --with librosa python3 scripts/download_wer_data.py --ami
 
 Datasets used:
     jfk.wav    — whisper.cpp sample, public domain
@@ -63,7 +66,8 @@ def download_ami(out_dir: pathlib.Path, n_segments: int) -> None:
         from datasets import load_dataset
     except ImportError:
         print("ERROR: 'datasets' package not found.", file=sys.stderr)
-        print("Install it with:  pip install datasets soundfile numpy", file=sys.stderr)
+        print('Install it with:  pip install "datasets<3.0" soundfile numpy librosa', file=sys.stderr)
+        print("Note: requires Python <=3.12. Use: uv run --python 3.12 --with ...", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -85,7 +89,6 @@ def download_ami(out_dir: pathlib.Path, n_segments: int) -> None:
         "ihm",
         split="test",
         streaming=True,
-        trust_remote_code=True,
     )
 
     arrays = []
@@ -164,8 +167,8 @@ def main() -> None:
     parser.add_argument(
         "--ami",
         action="store_true",
-        help="Download from AMI Meeting Corpus (realistic meeting speech, CC BY 4.0). "
-             "Requires: pip install datasets soundfile numpy",
+        help='Download from AMI Meeting Corpus (realistic meeting speech, CC BY 4.0). '
+             'Requires: pip install "datasets<3.0" soundfile numpy',
     )
     parser.add_argument(
         "--n",

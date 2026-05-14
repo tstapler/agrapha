@@ -291,11 +291,14 @@ class WhisperService : Closeable {
         /**
          * Load the whisper-jni native library exactly once, thread-safely.
          *
-         * Preference order:
-         *  1. libwhisperjni-coreml.dylib bundled as a classpath resource (built by
-         *     native/WhisperCoreML/make with -DWHISPER_COREML=1). When present this gives
-         *     3–4× ANE acceleration on Apple Silicon with no API changes.
-         *  2. WhisperJNI.loadLibrary() — whisper-jni's bundled CPU-only dylib (fallback).
+         * Preference order (first that succeeds wins):
+         *  1. libwhisperjni-coreml.dylib — classpath resource (macOS, built by
+         *     native/WhisperCoreML/Makefile). Gives 3–4× ANE acceleration on Apple Silicon.
+         *  2. libwhisperjni-cuda.so — disk path (Linux, built by native/WhisperCUDA/Makefile).
+         *     Gives 15–30× GPU acceleration on NVIDIA hardware. Discovered at:
+         *     ~/.local/share/meeting-notes/lib/libwhisperjni-cuda.so
+         *     Falls back gracefully if absent or if the CUDA runtime version mismatches.
+         *  3. WhisperJNI.loadLibrary() — whisper-jni's bundled CPU-only dylib.
          *
          * Without the double-checked locking, parallel channel transcription races inside
          * [WhisperJNI.loadLibrary] — both threads simultaneously extract the dylib to the
@@ -311,6 +314,12 @@ class WhisperService : Closeable {
 
         private val loadLock = Any()
 
+        // Fallback path for developers who ran `make INSTALL_DIR=~/.local/...` outside the app build.
+        private val cudaSoDevPath: File = File(
+            System.getProperty("user.home"),
+            ".local/share/meeting-notes/lib/libwhisperjni-cuda.so"
+        )
+
         private fun loadLibraryOnce() {
             if (libraryLoaded) return
             synchronized(loadLock) {
@@ -322,7 +331,8 @@ class WhisperService : Closeable {
                         "Check /proc/cpuinfo for 'avx2' flag."
                     )
                 }
-                // Prefer CoreML dylib (built by native/WhisperCoreML/make, bundled as resource).
+
+                // 1. CoreML dylib (macOS, built by native/WhisperCoreML/Makefile, bundled as resource).
                 val coremlLoaded = runCatching {
                     val stream = WhisperService::class.java.getResourceAsStream("/libwhisperjni-coreml.dylib")
                     if (stream != null) {
@@ -330,28 +340,65 @@ class WhisperService : Closeable {
                         val dest = File(tmpDir, "libwhisperjni-coreml.dylib")
                         stream.use { it.copyTo(dest.outputStream()) }
                         System.load(dest.absolutePath)
-                        System.err.println("[WhisperService] CoreML dylib loaded: libwhisperjni-coreml.dylib")
                         System.err.println("[WhisperService] backend=CoreML")
                         detectedBackend = "CoreML"
                         true
                     } else false
                 }.getOrDefault(false)
+                if (coremlLoaded) { libraryLoaded = true; return }
 
-                if (!coremlLoaded) {
-                    // Fallback: whisper-jni's built-in CPU-only dylib.
-                    System.err.println("[WhisperService] backend=CPU")
-                    detectedBackend = "CPU"
-                    try {
-                        WhisperJNI.loadLibrary()
-                    } catch (_: UnsatisfiedLinkError) {
-                        // Corrupt or partial extraction in temp dir — wipe and retry once.
-                        File(System.getProperty("java.io.tmpdir"))
-                            .listFiles { f -> f.isDirectory && f.name.startsWith("whisper-jni-") }
-                            ?.forEach { it.deleteRecursively() }
-                        WhisperJNI.loadLibrary()
-                    }
+                // 2. CUDA .so (Linux, built by native/WhisperCUDA/Makefile).
+                //    Primary: classpath resource bundled with the distribution.
+                //    Secondary: developer disk path (make INSTALL_DIR=~/.local/...).
+                //    Fails gracefully if CUDA drivers are absent or version-mismatched.
+                val cudaLoaded = if (PlatformInfo.isLinux()) tryLoadCuda() else false
+                if (cudaLoaded) { libraryLoaded = true; return }
+
+                // 3. CPU fallback — whisper-jni's bundled dylib.
+                System.err.println("[WhisperService] backend=CPU")
+                detectedBackend = "CPU"
+                try {
+                    WhisperJNI.loadLibrary()
+                } catch (_: UnsatisfiedLinkError) {
+                    // Corrupt or partial extraction in temp dir — wipe and retry once.
+                    File(System.getProperty("java.io.tmpdir"))
+                        .listFiles { f -> f.isDirectory && f.name.startsWith("whisper-jni-") }
+                        ?.forEach { it.deleteRecursively() }
+                    WhisperJNI.loadLibrary()
                 }
                 libraryLoaded = true
+            }
+        }
+
+        private fun tryLoadCuda(): Boolean {
+            // Try classpath resource first (distributed with the app).
+            val fromClasspath = runCatching {
+                val stream = WhisperService::class.java.getResourceAsStream("/libwhisperjni-cuda.so")
+                if (stream != null) {
+                    val tmpDir = java.nio.file.Files.createTempDirectory("meeting-notes-whisper-cuda").toFile()
+                    val dest = File(tmpDir, "libwhisperjni-cuda.so")
+                    stream.use { it.copyTo(dest.outputStream()) }
+                    System.load(dest.absolutePath)
+                    System.err.println("[WhisperService] backend=CUDA")
+                    detectedBackend = "CUDA"
+                    true
+                } else false
+            }.getOrElse { e ->
+                System.err.println("[WhisperService] CUDA resource load failed: ${e.message} — falling back to CPU")
+                false
+            }
+            if (fromClasspath) return true
+
+            // Try developer disk path (built outside the app with make INSTALL_DIR=...).
+            if (!cudaSoDevPath.isFile) return false
+            return runCatching {
+                System.load(cudaSoDevPath.absolutePath)
+                System.err.println("[WhisperService] backend=CUDA  (dev: ${cudaSoDevPath.absolutePath})")
+                detectedBackend = "CUDA"
+                true
+            }.getOrElse { e ->
+                System.err.println("[WhisperService] CUDA .so at ${cudaSoDevPath} failed to load: ${e.message} — falling back to CPU")
+                false
             }
         }
     }
