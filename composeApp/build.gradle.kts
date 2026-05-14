@@ -152,6 +152,7 @@ val buildFluidDiarizationBridge by tasks.registering(Exec::class) {
         "swift", "build", "-c", "release",
         "-Xcc", "-I$javaHome/include",
         "-Xcc", "-I$javaHome/include/darwin",
+        "-Xcc", "-Wno-typedef-redefinition",
     )
 
     inputs.dir(rootProject.file("native/FluidDiarizationBridge/Sources"))
@@ -203,7 +204,7 @@ val buildWhisperCuda by tasks.registering(Exec::class) {
     enabled = cudaEnabled
 
     workingDir = rootProject.file("native/WhisperCUDA")
-    commandLine("make")
+    commandLine("make", "JAVA_HOME=${System.getenv("JAVA_HOME") ?: ""}")
 
     inputs.file(rootProject.file("native/WhisperCUDA/Makefile"))
     outputs.file(cudaSoResource)
