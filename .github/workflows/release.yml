@@ -7,7 +7,7 @@ on:
 
 jobs:
   release:
-    runs-on: macos-14
+    runs-on: macos-15   # Xcode 16 / Swift 6 — required by FluidAudio >= 0.14.5
     timeout-minutes: 60
     permissions:
       contents: write   # required for gh release create
