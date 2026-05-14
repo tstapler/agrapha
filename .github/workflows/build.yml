@@ -41,17 +41,21 @@ jobs:
       # CPU-only dylib; CoreML acceleration requires building from source.
       # Spike ADR-004: once whisper-jni 1.7.1 is verified to include a macOS arm64
       # CoreML dylib, this step can be removed and libs.versions.toml updated to 1.7.1.
-      - name: Cache WhisperCoreML build
+      #
+      # Cache the git clone only — NOT the cmake build directory.
+      # The build dir embeds absolute JAVA_HOME paths; restoring it across runners
+      # causes cmake to skip reconfiguration and compile with stale jni.h paths.
+      - name: Cache WhisperCoreML source clone
         uses: actions/cache@v4
         with:
-          path: native/WhisperCoreML/build
-          key: ${{ runner.os }}-whisper-jni-${{ hashFiles('native/WhisperCoreML/Makefile', 'gradle/libs.versions.toml') }}
+          path: native/WhisperCoreML/build/whisper-jni
+          key: ${{ runner.os }}-whisper-jni-src-${{ hashFiles('native/WhisperCoreML/Makefile') }}
 
       - name: Build WhisperCoreML dylib
         run: |
           brew install cmake
           cd native/WhisperCoreML
-          make
+          make JAVA_HOME="$JAVA_HOME"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -154,20 +158,21 @@ jobs:
           cache: gradle
 
       - name: Install CUDA toolkit
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends \
-            cmake \
-            cuda-toolkit-12-6
+        uses: Jimver/cuda-toolkit@v0.2.19
+        with:
+          cuda: '12.6.0'
+          method: 'network'
+          linux-local-args: '["--toolkit"]'
 
-      - name: Add nvcc to PATH
-        run: echo "/usr/local/cuda/bin" >> "$GITHUB_PATH"
+      - name: Install cmake
+        run: sudo apt-get install -y --no-install-recommends cmake
 
-      - name: Cache whisper-jni CUDA build
+      # Cache the git clone only — NOT the cmake build directory (embeds absolute paths).
+      - name: Cache whisper-jni CUDA source clone
         uses: actions/cache@v4
         with:
-          path: native/WhisperCUDA/build
-          key: ${{ runner.os }}-whisper-cuda-${{ hashFiles('native/WhisperCUDA/Makefile', 'gradle/libs.versions.toml') }}
+          path: native/WhisperCUDA/build/whisper-jni
+          key: ${{ runner.os }}-whisper-cuda-src-${{ hashFiles('native/WhisperCUDA/Makefile') }}
 
       - name: Cache Gradle
         uses: actions/cache@v4
