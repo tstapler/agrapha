@@ -7,11 +7,16 @@
 // Opaque type aliases — Swift will see these as UnsafeMutableRawPointer.
 // Keep them as void* so Swift doesn't need to know the JNI struct layout.
 typedef void* JNIEnvPtr;
+
+// Guard against redefinition when jni.h is included before this header (e.g. in jni_bridge.c).
+// JNIEXPORT is defined by jni.h, so its presence means the real JNI types are already in scope.
+#ifndef JNIEXPORT
 typedef void* jobject;
 typedef jobject jstring;
 typedef unsigned char jboolean;
 typedef int jint;
 typedef long long jlong;
+#endif
 
 #ifdef __cplusplus
 extern "C" {

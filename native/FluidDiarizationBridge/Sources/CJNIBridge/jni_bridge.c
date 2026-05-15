@@ -1,10 +1,12 @@
 // jni_bridge.c
 // Implements the JNI helpers declared in jni_bridge.h.
 // jni.h is available via -Xcc -I$JAVA_HOME/include -Xcc -I$JAVA_HOME/include/darwin.
-#include "include/jni_bridge.h"
+// Include jni.h first so JNIEXPORT is defined before jni_bridge.h, preventing
+// typedef redefinition conflicts between jni_bridge.h's void* aliases and jni.h's real types.
 #include <jni.h>
 #include <string.h>
 #include <stdlib.h>
+#include "include/jni_bridge.h"
 
 const char* jni_get_string_utf(JNIEnvPtr env, jstring str) {
     if (!env || !str) return NULL;
