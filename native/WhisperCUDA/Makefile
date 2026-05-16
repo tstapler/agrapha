@@ -68,13 +68,15 @@ configure: $(CMAKE_BUILD)/Makefile
 $(CMAKE_BUILD)/Makefile: $(WHISPER_JNI_DIR)/.git
 	@echo "==> Configuring CMake with GGML_CUDA=ON…"
 	@mkdir -p $(CMAKE_BUILD)
-	cmake -S $(WHISPER_JNI_DIR) \
+	JAVA_HOME=$(JAVA_HOME) cmake -S $(WHISPER_JNI_DIR) \
 	      -B $(CMAKE_BUILD) \
 	      -DCMAKE_BUILD_TYPE=Release \
 	      -DGGML_CUDA=ON \
 	      -DGGML_VULKAN=OFF \
 	      -DGGML_KOMPUTE=OFF \
 	      -DJAVA_HOME=$(JAVA_HOME) \
+	      -DJAVA_INCLUDE_PATH=$(JAVA_HOME)/include \
+	      -DJAVA_INCLUDE_PATH2=$(JAVA_HOME)/include/linux \
 	      -DBUILD_SHARED_LIBS=ON
 
 # ── Step 3: Build ─────────────────────────────────────────────────────────────
