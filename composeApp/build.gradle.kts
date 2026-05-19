@@ -239,7 +239,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg)
             packageName = "Agrapha"
-            packageVersion = "1.0.0"  // x-release-please-version
+            packageVersion = "1.1.0"  // x-release-please-version
             description = "Local meeting transcription that fits your memory system"
             vendor = "Agrapha"
             copyright = "© 2026 Agrapha contributors"
